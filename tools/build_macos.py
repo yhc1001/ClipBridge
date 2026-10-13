@@ -11,10 +11,20 @@ if sys.platform != "darwin":
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
 from PyInstaller.__main__ import run
+extra = []
+if platform.machine() == "x86_64":
+    # Intel cryptography is built from source against Homebrew OpenSSL. Python
+    # ships another libssl.3; flattening both can select the incompatible older DLL.
+    prefix = subprocess.check_output(["brew", "--prefix", "openssl@3"], text=True).strip()
+    for name in ("libssl.3.dylib", "libcrypto.3.dylib"):
+        library = Path(prefix) / "lib" / name
+        if not library.exists():
+            raise RuntimeError("OpenSSL build dependency missing: " + name)
+        extra += ["--add-binary", str(library) + ":."]
 run(["--noconfirm", "--clean", "--windowed", "--onedir", "--name", "ClipBridge",
      "--osx-bundle-identifier", "com.clipbridge.app", "--distpath", "dist/macos",
      "--exclude-module", "PySide6.QtWebEngineCore", "--exclude-module", "PySide6.QtWebEngineWidgets",
-     "--exclude-module", "PySide6.QtPdf", "--exclude-module", "tkinter", "bootstrap.py"])
+     "--exclude-module", "PySide6.QtPdf", "--exclude-module", "tkinter", *extra, "bootstrap.py"])
 bundle = root / "dist" / "macos" / "ClipBridge.app"
 info = bundle / "Contents" / "Info.plist"
 value = plistlib.loads(info.read_bytes())

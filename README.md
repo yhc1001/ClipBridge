@@ -12,7 +12,7 @@
 | Apple 칩 Mac | `ClipBridge-macOS-arm64.zip` |
 | Intel Mac | `ClipBridge-macOS-intel.zip` |
 
-Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac은 압축을 풀고 `ClipBridge.app`을 **응용 프로그램** 폴더로 옮겨 실행합니다. Python은 설치하지 않아도 됩니다.
+Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac(macOS 14 이상)은 압축을 풀고 `ClipBridge.app`을 **응용 프로그램** 폴더로 옮겨 실행합니다. Python은 설치하지 않아도 됩니다.
 
 ## 2. 처음 한 번만 연결
 

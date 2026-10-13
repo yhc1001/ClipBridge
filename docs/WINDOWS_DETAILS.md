@@ -1,4 +1,6 @@
-# ClipBridge
+# Windows v1.0.0 상세 구현·검증 기록
+
+현재 버전의 간단한 사용법은 [README](../README.md), Mac 지원은 [Mac 안내](MACOS.md)를 확인하세요. 아래 내용은 최초 Windows 버전의 상세 기록입니다.
 
 Windows PC 두 대의 클립보드를 LAN/Tailscale에서 자동으로 양방향 동기화하는 한국어 트레이 프로그램입니다. Main과 newserver에 같은 `ClipBridge.exe`를 실행합니다. 노트북에는 설치하지 않습니다. Deskflow, Moonlight, Sunshine의 설정이나 설치 파일은 변경하지 않습니다.
 
