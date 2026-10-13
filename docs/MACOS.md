@@ -1,0 +1,19 @@
+# Mac 지원
+
+Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니다. 한 연결에 컴퓨터 두 대를 페어링합니다.
+
+- macOS NSPasteboard의 변경 번호를 0.1초마다 확인하여 앱이 숨겨져 있어도 새 복사를 감지합니다.
+- Unicode 텍스트, PNG/TIFF 이미지, HTML, RTF, Finder 파일·폴더의 실제 전송을 구현했습니다.
+- Windows HTML의 바이트 오프셋과 Mac HTML을 서로 변환합니다. Windows DIB 이미지도 PNG로 변환하여 Mac에 등록합니다.
+- Mac 비밀정보는 로그인 키체인에 저장한 키로 AES-GCM 암호화합니다. 설정은 `~/Library/Application Support/ClipBridge`에 저장합니다.
+- 자동 실행은 현재 사용자의 LaunchAgent를 사용합니다. ‘로그인하면 자동으로 켜기’를 체크한 뒤 저장하세요. 앱을 응용 프로그램 폴더로 옮긴 뒤 설정하세요.
+- 수신 파일은 임시 저장소에 놓고 Finder가 붙여넣을 수 있는 file URL로 등록합니다. 실제 붙여넣기를 완료한 뒤 프로그램을 종료하세요.
+- 수신 데이터와 연결 코드에 `currentHostOnly`를 사용하여 Apple Universal Clipboard에 공유하지 않습니다.
+
+## 검증
+
+Windows에서 기존 47개 검사와 Mac 어댑터·HTML 변환·암호화·자동 실행 파일 생성 검사가 통과했습니다. 실제 macOS 테스트 및 Apple 칩/Intel .app 빌드는 [GitHub Actions](https://github.com/yhc1001/ClipBridge/actions/workflows/build-macos.yml)에서 확인합니다.
+
+Mac과 Windows **서로 다른 실물 기기**의 앱별 붙여넣기, Finder UI 조작, 재로그인 자동 시작, 새 Mac에서 Gatekeeper 및 키체인 승인 절차는 자동으로 검증하지 않았습니다. 클립보드 접근 알림이 나타나는 macOS 버전에서는 접근을 허용해야 합니다.
+
+기존 Windows v1.0.0과 같은 전송 프로토콜/연결 코드를 사용합니다. Windows 앱을 먼저 바꿔야만 Mac이 연결되는 구조는 아닙니다. 새 Mac 장치를 연결하려면 기존 연결을 초기화하고 새 장치를 페어링하세요.

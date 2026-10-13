@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
@@ -64,7 +65,7 @@ try:
         store.save(local)
         device = Device(peer, base / "peer")
         device.start()
-        process = subprocess.Popen([str(root / "dist" / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=12"], env=dict(os.environ, LOCALAPPDATA=str(base)))
+        process = subprocess.Popen([str(root / "dist" / "v1.1.0" / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=12"], env=dict(os.environ, LOCALAPPDATA=str(base), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4())))
         try:
             wait_for(lambda: device.connected, 15)
             start = time.perf_counter()

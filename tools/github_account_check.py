@@ -29,6 +29,8 @@ def github_request(token, path, method="GET", data=None, headers=None):
                                               "User-Agent": "ClipBridge-publisher", "X-GitHub-Api-Version": "2022-11-28",
                                               "Content-Type": "application/json", **(headers or {})})
     with urllib.request.urlopen(request, timeout=30) as response:
+        if response.status == 204:
+            return None
         return json.load(response)
 
 

@@ -41,6 +41,10 @@ def main():
     except Exception as error:
         if window:
             window.quit()
+        if smoke and os.environ.get("CLIPBRIDGE_STARTUP_DIAGNOSTIC"):
+            import traceback
+            Path(os.environ["CLIPBRIDGE_STARTUP_DIAGNOSTIC"]).write_text(traceback.format_exc(), encoding="utf-8")
+            return 1
         QMessageBox.critical(None, "ClipBridge 시작 오류", "설정 또는 Windows 기능을 초기화하지 못했습니다.\n오류 종류: " + type(error).__name__ + "\nREADME의 문제 해결 안내를 확인하세요.")
         return 1
     finally:

@@ -66,7 +66,7 @@ class Config:
         if connection:
             private_address(self.peer_ip)
             if self.role == "server" and (not self.peer_pin or not self.peer_id):
-                raise ValueError("newserver에서 Main의 연결 코드를 먼저 등록하세요.")
+                raise ValueError("Main에서 복사한 연결 코드를 먼저 붙여넣으세요.")
 
     def can_send(self):
         return not self.paused and (self.direction == "both" or self.role == "main")
