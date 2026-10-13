@@ -2,6 +2,7 @@
 import argparse
 import io
 import json
+import sys
 from pathlib import Path
 import urllib.error
 import urllib.request
@@ -9,6 +10,7 @@ import zipfile
 from github_account_check import github_request, github_token
 
 PREFIX = "/repos/yhc1001/ClipBridge"
+sys.stdout.reconfigure(encoding="utf-8")
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -34,7 +36,7 @@ def download(token, path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("dispatch", "status", "logs", "download"))
+    parser.add_argument("action", choices=("dispatch", "status", "logs", "download", "cancel"))
     parser.add_argument("--run", type=int)
     args = parser.parse_args()
     token = github_token()
@@ -47,6 +49,11 @@ def main():
         print(json.dumps([{k: run[k] for k in ("id", "status", "conclusion", "html_url", "head_sha")} for run in runs["workflow_runs"]]))
         return
     run = github_request(token, PREFIX + f"/actions/runs/{args.run}")
+    if args.action == "cancel":
+        if run["status"] != "completed":
+            github_request(token, PREFIX + f"/actions/runs/{args.run}/cancel", "POST")
+        print("Obsolete build stopped")
+        return
     if args.action == "status":
         jobs = github_request(token, PREFIX + f"/actions/runs/{args.run}/jobs")
         print(json.dumps({"status": run["status"], "conclusion": run["conclusion"], "url": run["html_url"],
@@ -63,9 +70,9 @@ def main():
         data = download(token, PREFIX + f"/actions/runs/{args.run}/logs")
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             for name in archive.namelist():
-                if name.endswith(".txt") and any(label in name.lower() for label in ("tests", "build app", "packaged", "dependencies")):
+                if name.endswith(".txt") and any(label in name.lower() for label in ("tests", "packaged")):
                     text = archive.read(name).decode("utf-8", errors="replace")
-                    print(name + "\n" + "\n".join(text.splitlines()[-65:]))
+                    print(name + "\n" + "\n".join(text.splitlines()[-40:]))
     else:
         if run["conclusion"] != "success":
             raise RuntimeError("Only completed successful builds can be downloaded")

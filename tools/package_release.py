@@ -3,11 +3,15 @@ import hashlib
 import importlib.metadata as metadata
 import json
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
-dist = root / "dist"
+sys.path.insert(0, str(root))
+from clipbridge import __version__
+dist = root / "dist" / ("v" + __version__)
+dist.mkdir(parents=True, exist_ok=True)
 licenses = root / "licenses"
 licenses.mkdir(exist_ok=True)
 components = []
@@ -27,8 +31,8 @@ if python_license.exists():
     shutil.copyfile(python_license, licenses / "Python-LICENSE.txt")
 (licenses / "components.json").write_text(json.dumps(components, indent=2, ensure_ascii=False), encoding="utf-8")
 
-source_files = [root / name for name in ("main.py", "bootstrap.py", "build.ps1", "Configure-Firewall.ps1", "requirements.txt", "requirements-lock.txt", "README.md", "RELEASE_NOTES.md", "THIRD_PARTY_NOTICES.md", ".gitignore", ".gitattributes")]
-for directory in ("clipbridge", "tests", "tools", "assets", "licenses", "artifacts"):
+source_files = [root / name for name in ("main.py", "bootstrap.py", "build.ps1", "build-macos.sh", "Configure-Firewall.ps1", "requirements.txt", "requirements-lock.txt", "README.md", "RELEASE_NOTES.md", "THIRD_PARTY_NOTICES.md", ".gitignore", ".gitattributes")]
+for directory in ("clipbridge", "tests", "tools", "assets", "licenses", "artifacts", "docs", ".github"):
     source_files += [path for path in (root / directory).rglob("*") if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"]
 with zipfile.ZipFile(dist / "ClipBridge-source.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
     for path in sorted(source_files):
@@ -41,7 +45,9 @@ with zipfile.ZipFile(dist / "ClipBridge-portable.zip", "w", compression=zipfile.
         if path.is_file():
             archive.write(path, str(path.relative_to(root)))
 with (dist / "SHA256SUMS.txt").open("w", encoding="ascii") as output:
-    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip"):
+    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip"):
+        if not (dist / name).exists():
+            continue
         digest = hashlib.sha256((dist / name).read_bytes()).hexdigest()
         output.write(f"{digest}  {name}\n")
 print("Release bundles: source ZIP, portable ZIP, EXE, SHA256SUMS")

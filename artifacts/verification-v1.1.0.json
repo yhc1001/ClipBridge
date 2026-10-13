@@ -1,0 +1,19 @@
+{
+  "version": "1.1.0",
+  "date_kst": "2026-10-13",
+  "windows": {"platform": "Windows 11 Home x64", "python": "3.13.5", "tests_passed": 52, "mac_native_module_skipped": true, "packaged_startup_listener_tray_exit": "passed"},
+  "macos": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/38369518940",
+    "source_commit": "f760e9b8c270bbf7b5966bbb46f787e6f5c2e0fb",
+    "platform": "macOS 15",
+    "architectures": ["arm64", "x86_64"],
+    "tests_passed_per_architecture": 47,
+    "windows_native_modules_skipped": 2,
+    "nspasteboard_text_png_html_rtf_file_urls": "passed",
+    "keychain_settings_protection": "passed",
+    "loopback_tls_and_real_file_transfer": "passed",
+    "app_build_startup_exit": "passed",
+    "code_signature": "ad-hoc, Developer ID/notarization not provided"
+  },
+  "not_verified": ["Windows and Mac on separate physical devices", "Application-specific Cmd+V or Ctrl+V UI", "Actual login autostart", "Gatekeeper first-open on a user Mac", "Windows Server versions", "macOS 14 runtime"]
+}

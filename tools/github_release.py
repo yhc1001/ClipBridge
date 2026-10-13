@@ -65,14 +65,18 @@ def main():
             "body": args.notes.read_text(encoding="utf-8"), "draft": True, "prerelease": False,
         })
     root = Path(__file__).resolve().parents[1]
-    assets = ("ClipBridge.exe", "ClipBridge-portable.zip", "ClipBridge-source.zip", "SHA256SUMS.txt")
+    dist = root / "dist" / args.tag
+    if not dist.exists():
+        dist = root / "dist"
+    assets = ["ClipBridge.exe", "ClipBridge-portable.zip", "ClipBridge-source.zip", "SHA256SUMS.txt"]
+    assets += [name for name in ("ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip") if (dist / name).exists()]
     if args.action == "release":
         existing = {asset["name"]: asset for asset in release["assets"]}
         upload_base = release["upload_url"].split("{", 1)[0]
         if urllib.parse.urlparse(upload_base).hostname != "uploads.github.com":
             raise RuntimeError("Unexpected upload destination")
         for name in assets:
-            path = root / "dist" / name
+            path = dist / name
             data = path.read_bytes()
             digest = "sha256:" + hashlib.sha256(data).hexdigest()
             if name in existing:
@@ -97,7 +101,7 @@ def main():
     remote_assets = {asset["name"]: asset for asset in release["assets"]}
     checked = []
     for name in assets:
-        path = root / "dist" / name
+        path = dist / name
         expected = "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
         asset = remote_assets[name]
         if asset["state"] != "uploaded" or asset["size"] != path.stat().st_size or asset.get("digest") not in (None, expected):

@@ -14,6 +14,10 @@ Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니�
 
 Windows에서 기존 47개 검사와 Mac 어댑터·HTML 변환·암호화·자동 실행 파일 생성 검사가 통과했습니다. 실제 macOS 테스트 및 Apple 칩/Intel .app 빌드는 [GitHub Actions](https://github.com/yhc1001/ClipBridge/actions/workflows/build-macos.yml)에서 확인합니다.
 
+macOS 15 환경의 Apple 칩과 Intel에서 각각 네이티브 클립보드/키체인/로컬 TLS 검사 47개가 통과했습니다. **두 아키텍처 모두 .app 빌드·시작·정상 종료 및 임시 설정 생성 검사도 통과했습니다.** [v1.1.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/38369518940)
+
 Mac과 Windows **서로 다른 실물 기기**의 앱별 붙여넣기, Finder UI 조작, 재로그인 자동 시작, 새 Mac에서 Gatekeeper 및 키체인 승인 절차는 자동으로 검증하지 않았습니다. 클립보드 접근 알림이 나타나는 macOS 버전에서는 접근을 허용해야 합니다.
 
 기존 Windows v1.0.0과 같은 전송 프로토콜/연결 코드를 사용합니다. Windows 앱을 먼저 바꿔야만 Mac이 연결되는 구조는 아닙니다. 새 Mac 장치를 연결하려면 기존 연결을 초기화하고 새 장치를 페어링하세요.
+
+[Apple: currentHostOnly](https://developer.apple.com/documentation/appkit/nspasteboard/contentsoptions/currenthostonly) · [Apple: 서명되지 않은 앱의 첫 실행 안내](https://support.apple.com/en-ie/102445)
