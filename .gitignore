@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+build/
+dist/
+*.spec
+*.log
+.env
+.env.*
+settings.json
+settings.*.tmp
+transfers/
+*.pem
+*.key
+*startup-diagnostic*.txt

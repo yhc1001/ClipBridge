@@ -1,0 +1,19 @@
+{
+  "date_kst": "2026-10-13",
+  "platform": "Windows 11 Home x64 10.0.26300",
+  "python": "3.13.5",
+  "pytest": {"passed": 47, "failed": 0},
+  "qt_window_render": "passed",
+  "packaged_exe": {
+    "startup_tray_listener_shutdown": "passed",
+    "tls_to_native_unicode_clipboard": "passed",
+    "native_clipboard_to_tls": "passed",
+    "png_dib_dibv5_html_rtf": "passed",
+    "actual_file_data_and_cf_hdrop": "passed",
+    "receive_loop_prevention": "passed",
+    "shutdown_temp_file_cleanup": "passed",
+    "one_text_receive_latency_ms": 28
+  },
+  "network_test_scope": "Same-PC loopback TLS, independent engines and packaged EXE; not two physical PCs.",
+  "not_verified": ["Actual Main/newserver LAN or Tailscale", "PicPick", "Snipping Tool", "Browser application paste", "Word application paste", "Excel native formats", "Explorer UI paste", "Actual Windows login autostart", "Moonlight Ctrl+V", "Windows Server version compatibility", "Firewall rule deployment", "Python 3.12"]
+}
