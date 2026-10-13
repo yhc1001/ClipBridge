@@ -1,5 +1,7 @@
 PySide6>=6.8,<7
-pywin32>=308
+pywin32>=308; sys_platform == "win32"
+pyobjc-framework-Cocoa>=11,<13; sys_platform == "darwin"
+pyobjc-framework-Security>=11,<13; sys_platform == "darwin"
 Pillow>=11,<13
 cryptography>=50,<51
 pyinstaller>=6.12,<7

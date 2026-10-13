@@ -3,7 +3,7 @@ import struct
 import time
 
 import pytest
-import win32clipboard as cb
+cb = pytest.importorskip("win32clipboard")
 import win32con
 from PIL import Image
 

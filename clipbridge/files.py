@@ -17,7 +17,7 @@ def assert_local_regular(path: Path):
         raise ValueError("UNC/network sources are not supported")
     for part in [path, *path.parents]:
         info = part.lstat()
-        if getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT or part.is_symlink():
+        if getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400) or part.is_symlink():
             raise ValueError("reparse points are not supported")
     info = path.stat()
     if not stat.S_ISREG(info.st_mode) and not stat.S_ISDIR(info.st_mode):
@@ -160,7 +160,7 @@ class TransferStore:
         # A single-instance mutex is acquired before this store is created.
         self.base.mkdir(parents=True, exist_ok=True)
         assert_local_regular(self.base)
-        if self.base.is_symlink() or getattr(self.base.lstat(), "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+        if self.base.is_symlink() or getattr(self.base.lstat(), "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400):
             raise ValueError("unsafe transfer directory")
         for directory in self.base.iterdir():
             try:

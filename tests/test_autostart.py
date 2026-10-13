@@ -1,4 +1,5 @@
-import winreg
+import pytest
+winreg = pytest.importorskip("winreg")
 from clipbridge.config import set_autostart
 
 

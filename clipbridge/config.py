@@ -5,7 +5,6 @@ import os
 import secrets
 import sys
 import uuid
-import winreg
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -14,7 +13,11 @@ from .security import make_identity, protect, unprotect
 
 
 def app_directory() -> Path:
-    return Path(os.environ["LOCALAPPDATA"]) / "ClipBridge"
+    if sys.platform == "win32":
+        return Path(os.environ["LOCALAPPDATA"]) / "ClipBridge"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "ClipBridge"
+    raise RuntimeError("Unsupported operating system")
 
 
 @dataclass
@@ -76,6 +79,8 @@ class ConfigStore:
     def __init__(self, directory: Path | None = None):
         self.directory = directory or app_directory()
         self.directory.mkdir(parents=True, exist_ok=True)
+        if sys.platform == "darwin":
+            self.directory.chmod(0o700)
         self.path = self.directory / "settings.json"
 
     def load(self) -> Config:
@@ -97,9 +102,15 @@ class ConfigStore:
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(asdict(config), ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(temporary, self.path)
+        if sys.platform == "darwin":
+            self.path.chmod(0o600)
 
 
 def set_autostart(enabled: bool):
+    if sys.platform == "darwin":
+        from .macos_startup import set_autostart as mac_autostart
+        return mac_autostart(enabled)
+    import winreg
     command = f'"{sys.executable}" --background' if getattr(sys, "frozen", False) else f'"{sys.executable}" "{Path(__file__).resolve().parent.parent / "main.py"}" --background'
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run") as key:
         if enabled:

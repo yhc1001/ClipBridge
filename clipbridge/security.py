@@ -7,10 +7,10 @@ import json
 import secrets
 import ssl
 import tempfile
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import win32crypt
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -20,11 +20,23 @@ from .model import canonical, valid_id
 
 
 def protect(data: bytes) -> str:
-    return base64.b64encode(win32crypt.CryptProtectData(data, "ClipBridge", None, None, None, 1)).decode("ascii")
+    if sys.platform == "win32":
+        import win32crypt
+        return base64.b64encode(win32crypt.CryptProtectData(data, "ClipBridge", None, None, None, 1)).decode("ascii")
+    if sys.platform == "darwin":
+        from .macos_security import protect as mac_protect
+        return mac_protect(data)
+    raise RuntimeError("Unsupported operating system")
 
 
 def unprotect(data: str) -> bytes:
-    return win32crypt.CryptUnprotectData(base64.b64decode(data, validate=True), None, None, None, 1)[1]
+    if sys.platform == "win32":
+        import win32crypt
+        return win32crypt.CryptUnprotectData(base64.b64decode(data, validate=True), None, None, None, 1)[1]
+    if sys.platform == "darwin":
+        from .macos_security import unprotect as mac_unprotect
+        return mac_unprotect(data)
+    raise RuntimeError("Unsupported operating system")
 
 
 def make_identity(device: str):

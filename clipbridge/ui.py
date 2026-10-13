@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import dataclasses
 import secrets
+import sys
 from datetime import datetime
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
+from PySide6.QtNetwork import QNetworkInterface
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
                              QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMenu, QMessageBox,
                              QPushButton, QSpinBox, QSystemTrayIcon, QVBoxLayout, QWidget)
@@ -13,7 +15,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDia
 from .config import ConfigStore, set_autostart
 from .clipboard import ClipboardWorker
 from .files import TransferStore
-from .model import FORMATS, Ledger
+from .model import FORMATS, Ledger, private_address
 from .network import NetworkEngine
 from .security import fingerprint, pairing_token, parse_pairing, protect
 
@@ -58,7 +60,7 @@ class Window(QMainWindow):
         self.boxes = []
         self.setWindowTitle("ClipBridge · 클립보드 연결")
         self.setWindowIcon(app_icon())
-        self.resize(510, 650)
+        self.resize(520, 450)
         self.clipboard = ClipboardWorker(config, self.ledger, self.local_copy, self.applied,
                                          lambda value: self.events.notification.emit("status", value))
         self.build_ui()
@@ -79,11 +81,11 @@ class Window(QMainWindow):
         layout.addWidget(self.connection)
         layout.addWidget(self.status)
         layout.addWidget(self.last)
-        group = QGroupBox("두 PC 연결")
+        group = QGroupBox("처음 한 번만 연결하세요")
         form = QFormLayout(group)
         self.role = QComboBox()
-        self.role.addItem("Main · 연결 대기", "main")
-        self.role.addItem("newserver · Main에 접속", "server")
+        self.role.addItem("Main · 연결 코드 만들기", "main")
+        self.role.addItem("상대 컴퓨터 · 연결 코드 받기", "server")
         self.role.setCurrentIndex(0 if self.config.role == "main" else 1)
         self.peer = QLineEdit(self.config.peer_ip)
         self.peer.setPlaceholderText("상대 PC의 LAN 또는 Tailscale IP")
@@ -93,27 +95,28 @@ class Window(QMainWindow):
         self.bind = QLineEdit(self.config.bind_ip)
         self.pair_state = QLabel()
         self.update_pair_state()
-        form.addRow("이 PC 역할", self.role)
-        form.addRow("상대 PC IP", self.peer)
-        form.addRow("연결 포트 (양쪽 동일)", self.port)
-        form.addRow("Main 수신 IP", self.bind)
+        form.addRow("1. 이 컴퓨터", self.role)
+        form.addRow("2. 상대 IP 주소", self.peer)
+        own_ip = QPushButton("내 IP 주소 확인")
+        own_ip.clicked.connect(self.show_addresses)
+        form.addRow(own_ip)
         form.addRow("인증", self.pair_state)
         buttons = QHBoxLayout()
-        for text, function in (("Main 연결 코드 복사", self.copy_code), ("newserver 코드 등록", self.import_code), ("신뢰 초기화", self.reset_pair)):
+        for text, function in (("연결 코드 복사", self.copy_code), ("연결 코드 붙여넣기", self.import_code)):
             button = QPushButton(text)
             button.clicked.connect(function)
             buttons.addWidget(button)
-        form.addRow(buttons)
+        form.addRow("3. 연결 코드", buttons)
         layout.addWidget(group)
-        options = QGroupBox("동기화 설정")
+        options = QGroupBox("자동으로 공유할 내용")
         form = QFormLayout(options)
-        self.text, self.images, self.files, self.autostart = QCheckBox("텍스트 · HTML · RTF"), QCheckBox("이미지"), QCheckBox("파일 · 폴더"), QCheckBox("Windows 로그인 시 자동 실행")
+        self.text, self.images, self.files, self.autostart = QCheckBox("글자와 서식"), QCheckBox("이미지"), QCheckBox("파일 · 처음 받을 때 승인"), QCheckBox("로그인하면 자동으로 켜기")
         for checkbox, key in ((self.text, "text"), (self.images, "images"), (self.files, "files"), (self.autostart, "autostart")):
             checkbox.setChecked(getattr(self.config, key))
             form.addRow(checkbox)
         self.direction = QComboBox()
         self.direction.addItem("양방향", "both")
-        self.direction.addItem("Main → newserver", "main_to_server")
+        self.direction.addItem("Main → 상대 컴퓨터", "main_to_server")
         self.direction.setCurrentIndex(0 if self.config.direction == "both" else 1)
         self.file_policy = QComboBox()
         for label, value in (("전송마다 수신 승인", "ask"), ("신뢰한 PC에서 항상 수신", "allow"), ("파일 수신·전송 차단", "block")):
@@ -124,11 +127,25 @@ class Window(QMainWindow):
         self.file_limit.setRange(1, 1024)
         self.clip_limit.setValue(self.config.clip_limit_mb)
         self.file_limit.setValue(self.config.file_limit_mb)
-        form.addRow("방향 (양쪽 동일하게 설정)", self.direction)
-        form.addRow("파일 승인", self.file_policy)
-        form.addRow("클립보드 제한 (MiB)", self.clip_limit)
-        form.addRow("파일 합계 제한 (MiB)", self.file_limit)
         layout.addWidget(options)
+        advanced_toggle = QPushButton("고급 설정 보기")
+        advanced_toggle.setCheckable(True)
+        advanced = QGroupBox("고급 설정")
+        advanced_form = QFormLayout(advanced)
+        advanced_form.addRow("연결 포트 (양쪽 동일)", self.port)
+        advanced_form.addRow("Main 수신 IP", self.bind)
+        advanced_form.addRow("공유 방향", self.direction)
+        advanced_form.addRow("파일 승인", self.file_policy)
+        advanced_form.addRow("클립보드 제한 (MiB)", self.clip_limit)
+        advanced_form.addRow("파일 합계 제한 (MiB)", self.file_limit)
+        reset = QPushButton("등록한 컴퓨터 연결 초기화")
+        reset.clicked.connect(self.reset_pair)
+        advanced_form.addRow(reset)
+        advanced.hide()
+        advanced_toggle.toggled.connect(advanced.setVisible)
+        advanced_toggle.toggled.connect(lambda checked: advanced_toggle.setText("고급 설정 접기" if checked else "고급 설정 보기"))
+        layout.addWidget(advanced_toggle)
+        layout.addWidget(advanced)
         actions = QHBoxLayout()
         save, reconnect, self.pause = QPushButton("저장 및 연결"), QPushButton("재연결"), QPushButton("재개" if self.config.paused else "일시 중지")
         save.clicked.connect(self.save_settings)
@@ -137,7 +154,7 @@ class Window(QMainWindow):
         for button in (save, reconnect, self.pause):
             actions.addWidget(button)
         layout.addLayout(actions)
-        note = QLabel("설정 창을 닫아도 트레이에서 계속 실행됩니다.\n파일은 상대 PC의 임시 폴더로 복사되며, 종료 전에 붙여넣기를 완료하세요.")
+        note = QLabel("연결되면 평소처럼 복사하고 붙여넣으세요.\n창을 닫아도 " + ("메뉴 막대" if sys.platform == "darwin" else "트레이") + "에서 계속 실행됩니다.")
         note.setWordWrap(True)
         layout.addWidget(note)
         self.setCentralWidget(widget)
@@ -160,6 +177,19 @@ class Window(QMainWindow):
         self.raise_()
         self.activateWindow()
 
+    def show_addresses(self):
+        addresses = []
+        for address in QNetworkInterface.allAddresses():
+            if address.isLoopback():
+                continue
+            try:
+                value = private_address(address.toString())
+                if value not in addresses:
+                    addresses.append(value)
+            except ValueError:
+                pass
+        QMessageBox.information(self, "내 IP 주소", "이 주소를 상대 컴퓨터의 ‘상대 IP 주소’에 넣으세요.\n\n" + ("\n".join(addresses) or "LAN 또는 Tailscale에 연결한 뒤 다시 확인하세요."))
+
     def update_pair_state(self):
         self.pair_state.setText("신뢰 장치 등록됨" if self.config.peer_id else "최초 장치 승인 필요")
 
@@ -180,15 +210,15 @@ class Window(QMainWindow):
 
     def copy_code(self):
         if self.config.role != "main":
-            QMessageBox.information(self, "역할 확인", "Main에서 연결 코드를 복사하여 newserver에 등록하세요.")
+            QMessageBox.information(self, "역할 확인", "Main으로 선택한 컴퓨터에서 코드를 복사하세요.")
             return
         self.clipboard.copy_private_text(pairing_token(self.config))
 
     def import_code(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle("Main 연결 코드 등록")
+        dialog.setWindowTitle("연결 코드 붙여넣기")
         layout = QVBoxLayout(dialog)
-        layout.addWidget(QLabel("Main의 연결 코드를 붙여넣으세요. 이 PC 역할은 newserver로 설정됩니다."))
+        layout.addWidget(QLabel("Main 컴퓨터에서 복사한 연결 코드를 붙여넣으세요."))
         code = QLineEdit()
         code.setEchoMode(QLineEdit.EchoMode.Password)
         layout.addWidget(code)
@@ -208,7 +238,7 @@ class Window(QMainWindow):
             self.role.setCurrentIndex(1)
             self.store.save(self.config)
             self.update_pair_state()
-            self.status.setText("코드를 등록했습니다. Main의 IP를 입력한 뒤 저장 및 연결을 누르세요.")
+            self.status.setText("준비됐습니다. Main의 IP를 넣고 저장 및 연결을 누르세요.")
         except Exception:
             QMessageBox.warning(self, "코드 확인", "연결 코드를 확인하세요. 서로 다른 PC의 코드가 필요합니다.")
 
