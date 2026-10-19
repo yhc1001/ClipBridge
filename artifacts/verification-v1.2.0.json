@@ -1,0 +1,60 @@
+{
+  "version": "1.2.0",
+  "date_kst": "2026-10-19",
+  "windows": {
+    "platform": "Windows 11 x64",
+    "python": "3.13.5",
+    "runtime_source_commit": "80d1529cfa7615ea712f48170fca9443fff5db71",
+    "tests_passed": 66,
+    "mac_native_module_skipped": 1,
+    "packaged_exe_version": "1.2.0",
+    "packaged_startup_native_listener_tray_exit": "passed",
+    "packaged_tls_to_unicode_clipboard_and_reverse": "passed",
+    "packaged_png_dib_dibv5_html_rtf_registration": "passed",
+    "packaged_real_file_transfer_to_cf_hdrop": "passed",
+    "packaged_loop_prevention_exit_and_temp_cleanup": "passed",
+    "same_item_synthesized_format_sequence_regression": "passed",
+    "autostart_registry_registration_and_restore": "passed"
+  },
+  "macos": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39243272272",
+    "source_commit": "0714d7ecd77a33f5ae2f21402833753cea1eceb2",
+    "platform": "macOS 15",
+    "python": "3.13.15",
+    "architectures": ["arm64", "x86_64"],
+    "tests_passed_per_architecture": 60,
+    "windows_native_modules_skipped": 2,
+    "nspasteboard_text_png_html_rtf_file_urls": "passed",
+    "keychain_settings_protection": "passed",
+    "launchagent_generation": "passed",
+    "app_build_startup_exit": "passed",
+    "post_ci_runtime_changes": "Windows clipboard adapter only; macOS runtime unchanged",
+    "code_signature": "ad-hoc; no Developer ID or notarization"
+  },
+  "multidevice": {
+    "topology_tested": "1 hub + 3 clients, actual loopback TLS sockets on one host",
+    "clipboard_application": "memory adapters; native OS clipboard tests run separately",
+    "configured_max_clients": 16,
+    "unicode_images_html_rtf_each_origin_fanout_no_echo": "passed",
+    "four_simultaneous_copies_20_rounds_converge": "passed",
+    "client_disconnect_others_continue_reconnect_without_replay": "passed",
+    "real_multifile_folder_relay_independent_approval": "passed",
+    "pending_approval_does_not_block_new_text_or_other_clients": "passed",
+    "origin_specific_remembered_file_permission": "passed",
+    "distinct_protected_device_keys_and_consumed_invite_rejection": "passed",
+    "origin_spoof_rejection": "passed",
+    "hub_restart_keeps_approvals_no_clipboard_replay": "passed",
+    "revoked_client_reconnect_rejection": "passed",
+    "legacy_config_and_file_permission_migration": "passed",
+    "relay_file_lifetime_and_cleanup": "passed"
+  },
+  "not_verified": [
+    "Main, newserver and Mac as separate physical devices",
+    "16-client load and LAN latency benchmark",
+    "PicPick, Snipping Tool, browser, Word, Excel, Explorer, Finder and Moonlight paste UI in v1.2",
+    "Actual logout/login autostart",
+    "Windows Server editions",
+    "macOS 14 runtime",
+    "Gatekeeper first-open approval on a user Mac"
+  ]
+}

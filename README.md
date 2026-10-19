@@ -43,4 +43,4 @@ Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac(macOS 14 �
 
 통신은 TLS로 암호화하고 승인한 컴퓨터만 접속합니다. 외부 서버·텔레메트리·클라우드를 사용하지 않습니다. 허브가 꺼지면 모든 컴퓨터 사이의 공유가 중단됩니다.
 
-자동 검사는 **허브 + 참여 컴퓨터 3대**에서 수행했습니다. 서로 다른 실물 PC·Mac의 앱별 붙여넣기는 미검증입니다. [여러 대 연결·검증 결과](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [상세 지원 형식](docs/WINDOWS_DETAILS.md) · [빌드](docs/DEVELOPMENT.md)
+Windows 자동 검사 **66개**, Mac은 Apple 칩·Intel 각각 **60개**를 통과했고 실행 파일의 시작·종료도 확인했습니다. 여러 대 연결 검사는 한 호스트에서 **허브 + 참여 컴퓨터 3대**로 수행했습니다. 서로 다른 실물 PC·Mac의 앱별 붙여넣기와 실제 재로그인은 미검증입니다. [여러 대 연결·검증 결과](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [상세 지원 형식](docs/WINDOWS_DETAILS.md) · [빌드](docs/DEVELOPMENT.md)

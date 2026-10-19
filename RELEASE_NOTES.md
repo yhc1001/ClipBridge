@@ -15,4 +15,6 @@
 
 [검증 결과와 제한](https://github.com/yhc1001/ClipBridge/blob/main/docs/MULTIDEVICE.md) · [간단한 사용법](https://github.com/yhc1001/ClipBridge#readme)
 
+Windows 66개 검사와 최종 EXE의 실제 클립보드·파일 수신·정상 종료를 확인했습니다. Apple 칩·Intel Mac은 각각 60개 검사와 .app 빌드·시작·종료를 통과했습니다. [Mac 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39243272272)
+
 실물 PC·Mac의 앱별 붙여넣기, 16대 부하, 실제 재로그인은 미검증입니다. macOS 앱은 개발자 서명·공증 없이 제공됩니다.

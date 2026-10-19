@@ -14,7 +14,9 @@ Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니�
 
 현재 버전의 실제 macOS 테스트 및 Apple 칩/Intel .app 빌드는 [GitHub Actions](https://github.com/yhc1001/ClipBridge/actions/workflows/build-macos.yml)와 [버전별 검증 기록](../artifacts/)에서 확인합니다. 여러 대 연결 검사는 실제 TLS 소켓을 사용하지만 같은 호스트 안에서 수행합니다.
 
-macOS 15 환경의 Apple 칩과 Intel에서 각각 네이티브 클립보드/키체인/로컬 TLS 검사 47개가 통과했습니다. **두 아키텍처 모두 .app 빌드·시작·정상 종료 및 임시 설정 생성 검사도 통과했습니다.** [v1.1.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/38369518940)
+**v1.2.0:** Apple 칩과 Intel에서 각각 60개 검사를 통과했고, 두 .app 모두 빌드·시작·정상 종료가 통과했습니다. [v1.2.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39243272272). 이후 수정은 Windows 클립보드와 Windows 검사·문서에 한정됩니다.
+
+이전 v1.1.0에서도 macOS 15 Apple 칩과 Intel 각각 검사 47개와 .app 빌드·시작·종료가 통과했습니다. [v1.1.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/38369518940)
 
 Mac과 Windows **서로 다른 실물 기기**의 앱별 붙여넣기, Finder UI 조작, 재로그인 자동 시작, 새 Mac에서 Gatekeeper 및 키체인 승인 절차는 자동으로 검증하지 않았습니다. 클립보드 접근 알림이 나타나는 macOS 버전에서는 접근을 허용해야 합니다.
 
