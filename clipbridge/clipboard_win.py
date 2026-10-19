@@ -178,7 +178,7 @@ class ClipboardWorker(threading.Thread):
                     self.seen_sequence = sequence()
                 finally:
                     cb.CloseClipboard()
-                self.on_status("연결 코드를 복사했습니다 · 믿을 수 있는 방법으로 newserver에 전달하세요")
+                self.on_status("연결 코드를 복사했습니다 · 참여 컴퓨터 1대에 전달하세요")
                 return
             except Exception:
                 time.sleep(.05)

@@ -44,6 +44,8 @@ with zipfile.ZipFile(dist / "ClipBridge-portable.zip", "w", compression=zipfile.
     for path in licenses.rglob("*"):
         if path.is_file():
             archive.write(path, str(path.relative_to(root)))
+    for path in (root / "docs").rglob("*.md"):
+        archive.write(path, str(path.relative_to(root)))
 with (dist / "SHA256SUMS.txt").open("w", encoding="ascii") as output:
     for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip"):
         if not (dist / name).exists():

@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix="ClipBridge-exe-test-") as directory:
     diagnostic = Path(directory) / "startup-diagnostic.txt"
     environment = dict(os.environ, LOCALAPPDATA=directory, CLIPBRIDGE_STARTUP_DIAGNOSTIC=str(diagnostic), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4()))
     start = time.perf_counter()
-    executable = root / "dist" / "v1.1.0" / "ClipBridge.exe"
+    executable = root / "dist" / "v1.2.0" / "ClipBridge.exe"
     result = subprocess.run([str(executable), "--smoke-test"], env=environment, timeout=40)
     elapsed = time.perf_counter() - start
     if result.returncode:

@@ -4,12 +4,15 @@ import json
 import os
 import secrets
 import sys
+import threading
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from .model import MAX_CLIP, MAX_TOTAL, private_address, valid_id
 from .security import make_identity, protect, unprotect
+
+CONFIG_LOCK = threading.RLock()
 
 
 def app_directory() -> Path:
@@ -32,10 +35,12 @@ class Config:
     protected_secret: str = ""
     cert_pem: str = ""
     protected_key: str = ""
+    trusted_peers: dict = field(default_factory=dict)
     text: bool = True
     images: bool = True
     files: bool = True
     file_policy: str = "ask"
+    file_allow_ids: list = field(default_factory=list)
     direction: str = "both"
     paused: bool = False
     autostart: bool = False
@@ -58,15 +63,38 @@ class Config:
         valid_id(self.device_id)
         if self.peer_id:
             valid_id(self.peer_id)
+        if not isinstance(self.trusted_peers, dict) or len(self.trusted_peers) > 16:
+            raise ValueError("허브에는 최대 16대를 등록할 수 있습니다.")
+        for device, record in self.trusted_peers.items():
+            valid_id(device)
+            if device == self.device_id or not isinstance(record, dict) or not isinstance(record.get("secret"), str) or not isinstance(record.get("name", ""), str):
+                raise ValueError("등록된 장치 정보를 확인하세요.")
+        if not isinstance(self.file_allow_ids, list) or len(self.file_allow_ids) > 32:
+            raise ValueError("파일 승인 설정을 확인하세요.")
+        for device in self.file_allow_ids:
+            valid_id(device)
         if self.role not in ("main", "server") or self.direction not in ("both", "main_to_server") or self.file_policy not in ("ask", "allow", "block"):
             raise ValueError("설정 값이 올바르지 않습니다.")
         if not 1024 <= self.port <= 65535 or not 1 <= self.clip_limit_mb <= MAX_CLIP // 1024**2 or not 1 <= self.file_limit_mb <= 1024:
             raise ValueError("포트 또는 용량 범위를 확인하세요.")
         private_address(self.bind_ip, bind=True)
         if connection:
-            private_address(self.peer_ip)
-            if self.role == "server" and (not self.peer_pin or not self.peer_id):
-                raise ValueError("Main에서 복사한 연결 코드를 먼저 붙여넣으세요.")
+            if self.role == "server":
+                private_address(self.peer_ip)
+                if not self.peer_pin or not self.peer_id:
+                    raise ValueError("허브에서 복사한 연결 코드를 먼저 붙여넣으세요.")
+
+    def migrate_trust(self):
+        """Keep the old 1:1 peer's key; issue a separate invitation for new devices."""
+        if self.role == "main" and self.peer_id:
+            self.trusted_peers.setdefault(self.peer_id, {"secret": self.protected_secret, "name": "기존 컴퓨터"})
+            if self.file_policy == "allow":
+                self.file_allow_ids = list(dict.fromkeys(self.file_allow_ids + [self.peer_id]))
+                self.file_policy = "ask"
+            self.peer_id = self.peer_pin = ""
+            self.protected_secret = protect(secrets.token_bytes(32))
+            return True
+        return False
 
     def can_send(self):
         return not self.paused and (self.direction == "both" or self.role == "main")
@@ -82,6 +110,7 @@ class ConfigStore:
         if sys.platform == "darwin":
             self.directory.chmod(0o700)
         self.path = self.directory / "settings.json"
+        self.lock = threading.RLock()
 
     def load(self) -> Config:
         if self.path.exists():
@@ -90,6 +119,13 @@ class ConfigStore:
             config.validate(connection=False)
             if len(config.secret) != 32:
                 raise ValueError("DPAPI secret error")
+            changed = False
+            if "file_allow_ids" not in value and config.file_policy == "allow" and config.peer_id:
+                config.file_allow_ids = [config.peer_id]
+                config.file_policy = "ask"
+                changed = True
+            if config.migrate_trust() or changed:
+                self.save(config)
             return config
         config = Config()
         config.protected_secret = protect(secrets.token_bytes(32))
@@ -98,12 +134,13 @@ class ConfigStore:
         return config
 
     def save(self, config):
-        config.validate(connection=False)
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(asdict(config), ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(temporary, self.path)
-        if sys.platform == "darwin":
-            self.path.chmod(0o600)
+        with CONFIG_LOCK, self.lock:
+            config.validate(connection=False)
+            temporary = self.path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(asdict(config), ensure_ascii=False, indent=2), encoding="utf-8")
+            os.replace(temporary, self.path)
+            if sys.platform == "darwin":
+                self.path.chmod(0o600)
 
 
 def set_autostart(enabled: bool):

@@ -170,17 +170,42 @@ class TransferStore:
             except (ValueError, OSError):
                 pass
         self.retained: ReceiveTransfer | None = None
+        self.transfers = {}
+        self.pins = {}
 
     def retain(self, transfer: ReceiveTransfer):
-        # Previous received files are deleted after a replacement has been applied.
-        if self.retained:
-            self.retained.remove()
+        previous = self.retained
         self.retained = transfer
+        self.transfers[transfer.directory.name] = transfer
+        if previous:
+            self._collect(previous.directory.name)
+
+    def _collect(self, key):
+        transfer = self.transfers.get(key)
+        if transfer and transfer is not self.retained and not self.pins.get(key):
+            transfer.remove()
+            self.transfers.pop(key, None)
+            self.pins.pop(key, None)
+
+    def pin(self, paths):
+        # Keep staged files alive until every recipient has finished reading them.
+        keys = {key for key, transfer in self.transfers.items()
+                if any(Path(path).is_relative_to(transfer.directory) for path in paths)}
+        for key in keys:
+            self.pins[key] = self.pins.get(key, 0) + 1
+        return keys
+
+    def release(self, keys):
+        for key in keys:
+            self.pins[key] = max(0, self.pins.get(key, 0) - 1)
+            self._collect(key)
 
     def close(self):
-        if self.retained:
-            self.retained.remove()
-            self.retained = None
+        for transfer in self.transfers.values():
+            transfer.remove()
+        self.retained = None
+        self.transfers.clear()
+        self.pins.clear()
         # Also remove a stage whose constructor finished during task cancellation.
         for directory in self.base.iterdir():
             try:

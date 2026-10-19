@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from clipbridge.config import ConfigStore
+from clipbridge.config import ConfigStore, set_autostart
 from clipbridge.ui import Window
 from clipbridge.instance import InstanceLock
 
@@ -26,9 +26,11 @@ def main():
     try:
         store = ConfigStore(Path(os.environ["CLIPBRIDGE_TEST_DATA"]) if smoke and os.environ.get("CLIPBRIDGE_TEST_DATA") else None)
         config = store.load()
+        if config.autostart:
+            set_autostart(True)
         window = Window(store, config)
         application.aboutToQuit.connect(window.quit)
-        if "--background" not in sys.argv or not config.peer_ip:
+        if "--background" not in sys.argv or (config.role == "server" and not config.peer_ip):
             window.show()
         # Used for build smoke tests; does not change settings or enable a connection.
         if "--smoke-test" in sys.argv:

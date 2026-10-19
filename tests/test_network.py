@@ -26,11 +26,13 @@ def wait_for(predicate, timeout=8):
 class Device:
     def __init__(self, config, path, approve=True):
         self.config, self.ledger = config, Ledger(config.device_id)
+        self.config_store = ConfigStore(path)
         self.store = TransferStore(path)
         self.received, self.events = queue.Queue(), []
         self.connected = False
         self.approve = approve
         self.engine = None
+        self.current = None
 
     def notify(self, kind, info):
         self.events.append((kind, info))
@@ -40,16 +42,18 @@ class Device:
     def apply(self, snapshot, callback):
         valid = self.ledger.current(snapshot.stamp) and self.config.can_receive()
         if valid:
+            self.current = snapshot
             self.received.put(snapshot)
         callback(valid)
 
     def start(self):
         self.engine = NetworkEngine(self.config, self.ledger, self.store, self.apply, self.notify,
-                                    lambda kind, info, future: future.set_result(self.approve), lambda peer: None)
+                                    lambda kind, info, future: future.set_result(self.approve), lambda peer: None, self.config_store.save)
         self.engine.start()
 
     def send(self, formats=None, paths=None):
         snapshot = Snapshot(formats or {}, paths or [], self.ledger.local())
+        self.current = snapshot
         self.engine.submit(snapshot)
         return snapshot
 
@@ -75,7 +79,7 @@ def pair(tmp_path):
     a.start()
     b.start()
     wait_for(lambda: a.connected and b.connected)
-    assert a.config.peer_id == b.config.device_id
+    assert b.config.device_id in a.config.trusted_peers
     yield a, b
     a.stop()
     b.stop()
@@ -169,7 +173,9 @@ def test_wrong_secret_and_unapproved_device_rejected(pair):
     assert not b.connected
     b.stop()
     b.events.clear()
-    b.config.protected_secret = protect(a.config.secret)
+    from clipbridge.security import unprotect
+    old_key = unprotect(a.config.trusted_peers[b.config.device_id]["secret"])
+    b.config.protected_secret = protect(old_key)
     import uuid
     b.config.device_id = str(uuid.uuid4())
     b.ledger = Ledger(b.config.device_id)

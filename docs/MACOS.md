@@ -1,6 +1,6 @@
 # Mac 지원
 
-Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니다. 한 연결에 컴퓨터 두 대를 페어링합니다.
+Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니다. v1.2부터 허브 한 대에 여러 Windows/Mac을 연결합니다. newserver를 허브로 두고 Mac에는 허브 IP와 연결 코드를 입력하세요. Mac도 허브로 쓸 수 있지만 계속 켜 두어야 합니다.
 
 - macOS NSPasteboard의 변경 번호를 0.1초마다 확인하여 앱이 숨겨져 있어도 새 복사를 감지합니다.
 - Unicode 텍스트, PNG/TIFF 이미지, HTML, RTF, Finder 파일·폴더의 실제 전송을 구현했습니다.
@@ -12,12 +12,12 @@ Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니�
 
 ## 검증
 
-Windows에서 기존 47개 검사와 Mac 어댑터·HTML 변환·암호화·자동 실행 파일 생성 검사가 통과했습니다. 실제 macOS 테스트 및 Apple 칩/Intel .app 빌드는 [GitHub Actions](https://github.com/yhc1001/ClipBridge/actions/workflows/build-macos.yml)에서 확인합니다.
+현재 버전의 실제 macOS 테스트 및 Apple 칩/Intel .app 빌드는 [GitHub Actions](https://github.com/yhc1001/ClipBridge/actions/workflows/build-macos.yml)와 [버전별 검증 기록](../artifacts/)에서 확인합니다. 여러 대 연결 검사는 실제 TLS 소켓을 사용하지만 같은 호스트 안에서 수행합니다.
 
 macOS 15 환경의 Apple 칩과 Intel에서 각각 네이티브 클립보드/키체인/로컬 TLS 검사 47개가 통과했습니다. **두 아키텍처 모두 .app 빌드·시작·정상 종료 및 임시 설정 생성 검사도 통과했습니다.** [v1.1.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/38369518940)
 
 Mac과 Windows **서로 다른 실물 기기**의 앱별 붙여넣기, Finder UI 조작, 재로그인 자동 시작, 새 Mac에서 Gatekeeper 및 키체인 승인 절차는 자동으로 검증하지 않았습니다. 클립보드 접근 알림이 나타나는 macOS 버전에서는 접근을 허용해야 합니다.
 
-기존 Windows v1.0.0과 같은 전송 프로토콜/연결 코드를 사용합니다. Windows 앱을 먼저 바꿔야만 Mac이 연결되는 구조는 아닙니다. 새 Mac 장치를 연결하려면 기존 연결을 초기화하고 새 장치를 페어링하세요.
+기존 1:1 장치의 인증은 유지합니다. 여러 대 공유에는 모든 컴퓨터를 v1.2 이상으로 업데이트하세요. 새 Mac은 허브에서 새로 복사한 코드로 추가합니다. 이미 등록한 다른 기기의 연결을 초기화할 필요는 없습니다.
 
 [Apple: currentHostOnly](https://developer.apple.com/documentation/appkit/nspasteboard/contentsoptions/currenthostonly) · [Apple: 서명되지 않은 앱의 첫 실행 안내](https://support.apple.com/en-ie/102445)

@@ -1,10 +1,13 @@
 import queue
 import struct
 import time
+import threading
+import atexit
 
 import pytest
 cb = pytest.importorskip("win32clipboard")
 import win32con
+import win32gui
 from PIL import Image
 
 from clipbridge.clipboard import ClipboardWorker, raw_data, sequence
@@ -23,10 +26,37 @@ def wait_for(predicate, timeout=5):
     raise AssertionError("timed out")
 
 
+class ClipboardOwner(threading.Thread):
+    """Pump owner messages while the test thread waits for a clipboard worker."""
+    def __init__(self):
+        super().__init__(daemon=True)
+        self.ready, self.stopped = threading.Event(), threading.Event()
+        self.hwnd = None
+
+    def run(self):
+        self.hwnd = win32gui.CreateWindowEx(0, "STATIC", "ClipBridge test", 0, 0, 0, 0, 0, -3, 0, 0, None)
+        self.ready.set()
+        while not self.stopped.wait(.005):
+            win32gui.PumpWaitingMessages()
+        win32gui.DestroyWindow(self.hwnd)
+
+    def stop(self):
+        self.stopped.set()
+        self.join(2)
+
+
+_owner = ClipboardOwner()
+_owner.start()
+assert _owner.ready.wait(5)
+atexit.register(_owner.stop)
+
+
 def open_clipboard():
+    # An explicit owner prevents NULL-owner opens from interfering with the
+    # listener thread. The owner thread pumps WM_DESTROYCLIPBOARD messages.
     for _ in range(50):
         try:
-            cb.OpenClipboard()
+            cb.OpenClipboard(_owner.hwnd)
             return
         except Exception:
             time.sleep(.02)

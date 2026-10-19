@@ -5,8 +5,8 @@ import base64
 import concurrent.futures
 import hashlib
 import hmac
-import ipaddress
 import json
+import secrets
 import socket
 import struct
 import threading
@@ -14,9 +14,10 @@ import uuid
 
 from .files import ReceiveTransfer, TransferStore, scan_sources, validate_manifest
 from .images import normalize
-from .model import CHUNK, MAX_FRAME, Ledger, Snapshot, Stamp, canonical, valid_id
-from .security import client_context, nonce, proof, server_context, valid_nonce
+from .model import CHUNK, MAX_FRAME, Ledger, Snapshot, Stamp, canonical, private_address, valid_id
+from .security import client_context, nonce, proof, protect, server_context, unprotect, valid_nonce
 from .clipboard import sequence
+from .config import CONFIG_LOCK
 
 
 async def read_frame(reader, limit=MAX_FRAME, timeout=45):
@@ -40,20 +41,23 @@ async def write_frame(writer, value):
 
 
 class NetworkEngine(threading.Thread):
-    def __init__(self, config, ledger: Ledger, store: TransferStore, apply, notify, approve, paired):
+    def __init__(self, config, ledger: Ledger, store: TransferStore, apply, notify, approve, paired, persist=None):
         super().__init__(name="ClipBridge-network", daemon=True)
         self.config, self.ledger, self.store = config, ledger, store
         self.apply, self.notify, self.approve, self.paired = apply, notify, approve, paired
         self.loop = None
-        self.session: Session | None = None
+        self.sessions: dict[str, Session] = {}
+        self.persist = persist or (lambda config: None)
+        self.pending = 0
         self.ready = threading.Event()
         self.stopped = threading.Event()
-        self.last_sent_hash = ""
+        self.stop_requested = threading.Event()
 
     def run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.stop_event = asyncio.Event()
+        self.pair_lock = asyncio.Lock()
         self.ready.set()
         try:
             self.loop.run_until_complete(self._run())
@@ -70,16 +74,21 @@ class NetworkEngine(threading.Thread):
             self.loop.run_until_complete(self.loop.shutdown_asyncgens())
             self.loop.run_until_complete(self.loop.shutdown_default_executor())
             self.loop.close()
-            self.notify("connected", False)
+            self.notify("connected", 0)
+            self.notify("devices", [])
             self.stopped.set()
 
     async def _run(self):
+        if self.stop_requested.is_set():
+            return
+        if self.config.migrate_trust():
+            self.persist(self.config)
         self.config.validate()
         if self.config.role == "main":
             context = await asyncio.to_thread(server_context, self.config.cert_pem, self.config.protected_key)
             server = await asyncio.start_server(self._accept, self.config.bind_ip, self.config.port, ssl=context,
-                                                ssl_handshake_timeout=8, ssl_shutdown_timeout=2, backlog=4)
-            self.notify("status", "연결 대기 중 · 지정한 상대 PC만 허용")
+                                                ssl_handshake_timeout=8, ssl_shutdown_timeout=2, backlog=16)
+            self.notify("status", "허브 연결 대기 중 · 새 컴퓨터마다 연결 코드를 복사하세요")
             async with server:
                 await self.stop_event.wait()
         else:
@@ -93,9 +102,9 @@ class NetworkEngine(threading.Thread):
                     cert = writer.get_extra_info("ssl_object").getpeercert(binary_form=True)
                     if not hmac.compare_digest(hashlib.sha256(cert).hexdigest(), self.config.peer_pin):
                         raise ValueError("certificate pin mismatch")
-                    peer = await self._client_auth(reader, writer)
+                    peer, relay = await self._client_auth(reader, writer)
                     delay = 1
-                    await self._session(reader, writer, peer)
+                    await self._session(reader, writer, peer, relay)
                 except asyncio.CancelledError:
                     raise
                 except Exception as error:
@@ -113,52 +122,95 @@ class NetworkEngine(threading.Thread):
                     delay = min(delay * 2, 15)
 
     async def _accept(self, reader, writer):
+        counted = False
         try:
             address = writer.get_extra_info("peername")[0]
-            if ipaddress.ip_address(address) != ipaddress.ip_address(self.config.peer_ip) or self.session:
+            private_address(address)
+            if len(self.sessions) >= 16 or self.pending >= 8:
                 return
+            self.pending += 1
+            counted = True
             async with asyncio.timeout(130):
-                peer = await self._server_auth(reader, writer)
-            if self.session or self.stop_event.is_set():
+                peer, relay = await self._server_auth(reader, writer)
+            self.pending -= 1
+            counted = False
+            if peer in self.sessions or self.stop_event.is_set():
                 return
-            await self._session(reader, writer, peer)
+            await self._session(reader, writer, peer, relay)
         except asyncio.CancelledError:
             raise
         except Exception as error:
             self.notify("status", "연결이 거부되었거나 끊겼습니다 (" + type(error).__name__ + ")")
         finally:
+            if counted:
+                self.pending -= 1
             writer.close()
             try:
                 await writer.wait_closed()
             except Exception:
                 pass
 
-    async def ask(self, kind, info):
+    async def ask(self, kind, info, valid=None):
         future = concurrent.futures.Future()
         self.approve(kind, info, future)
         try:
-            return bool(await asyncio.wait_for(asyncio.wrap_future(future), 120))
+            wrapped = asyncio.wrap_future(future)
+            async with asyncio.timeout(120):
+                while True:
+                    if valid is not None and not valid():
+                        return False
+                    try:
+                        return bool(await asyncio.wait_for(asyncio.shield(wrapped), .25))
+                    except TimeoutError:
+                        pass
         except TimeoutError:
             return False
+        finally:
+            if not future.done():
+                future.cancel()
 
     async def _server_auth(self, reader, writer):
         server_id, server_nonce = self.config.device_id, nonce()
-        await write_frame(writer, {"type": "challenge", "version": 1, "device": server_id, "nonce": server_nonce})
+        await write_frame(writer, {"type": "challenge", "version": 1, "relay": 2, "device": server_id, "nonce": server_nonce})
         request = await read_frame(reader, 8192, timeout=10)
         client_id, client_nonce = valid_id(request.get("device")), valid_nonce(request.get("nonce"))
-        expected = proof(self.config.secret, "client", server_id, client_id, server_nonce, client_nonce)
-        if request.get("type") != "auth" or not isinstance(request.get("proof"), str) or not hmac.compare_digest(expected, request["proof"]):
-            raise ValueError("authentication failed")
-        if self.config.peer_id and self.config.peer_id != client_id:
-            raise ValueError("unapproved device")
-        if not self.config.peer_id:
-            if not await self.ask("pair", {"device": client_id, "ip": self.config.peer_ip}):
-                raise ValueError("pairing denied")
-            self.config.peer_id = client_id
-            self.paired(client_id)
+        if client_id == server_id or client_id in self.sessions:
+            raise ValueError("duplicate device")
+        def verify(secret):
+            expected = proof(secret, "client", server_id, client_id, server_nonce, client_nonce)
+            if request.get("type") != "auth" or not isinstance(request.get("proof"), str) or not hmac.compare_digest(expected, request["proof"]):
+                raise ValueError("authentication failed")
+        record = self.config.trusted_peers.get(client_id)
+        if record:
+            secret = unprotect(record["secret"])
+            verify(secret)
+        else:
+            # One invitation pairs one device. Existing devices never know the next key.
+            async with self.pair_lock:
+                secret = self.config.secret
+                verify(secret)
+                if len(self.config.trusted_peers) >= 16 or client_id in self.config.trusted_peers:
+                    raise ValueError("device limit or duplicate pairing")
+                name = request.get("name", "컴퓨터")
+                if not isinstance(name, str) or not 1 <= len(name) <= 64 or any(ord(c) < 32 for c in name):
+                    raise ValueError("invalid device name")
+                if not await self.ask("pair", {"device": client_id, "ip": writer.get_extra_info("peername")[0], "name": name}):
+                    raise ValueError("pairing denied")
+                with CONFIG_LOCK:
+                    old_secret = self.config.protected_secret
+                    self.config.trusted_peers[client_id] = {"secret": protect(secret), "name": name}
+                    self.config.protected_secret = protect(secrets.token_bytes(32))
+                    try:
+                        self.persist(self.config)
+                    except Exception:
+                        del self.config.trusted_peers[client_id]
+                        self.config.protected_secret = old_secret
+                        raise
+                self.paired(client_id)
         self.ledger.observe(request.get("clock"))
-        await write_frame(writer, {"type": "ready", "clock": self.ledger.clock, "proof": proof(self.config.secret, "server", server_id, client_id, server_nonce, client_nonce)})
-        return client_id
+        relay = 2 if request.get("relay") == 2 else 1
+        await write_frame(writer, {"type": "ready", "relay": relay, "clock": self.ledger.clock, "proof": proof(secret, "server", server_id, client_id, server_nonce, client_nonce)})
+        return client_id, relay
 
     async def _client_auth(self, reader, writer):
         challenge = await read_frame(reader, 8192, timeout=10)
@@ -166,38 +218,53 @@ class NetworkEngine(threading.Thread):
         if challenge.get("type") != "challenge" or challenge.get("version") != 1 or server_id != self.config.peer_id:
             raise ValueError("wrong server")
         client_id, client_nonce = self.config.device_id, nonce()
-        await write_frame(writer, {"type": "auth", "device": client_id, "nonce": client_nonce, "clock": self.ledger.clock,
+        await write_frame(writer, {"type": "auth", "relay": 2, "name": socket.gethostname()[:64] or "컴퓨터", "device": client_id, "nonce": client_nonce, "clock": self.ledger.clock,
                                    "proof": proof(self.config.secret, "client", server_id, client_id, server_nonce, client_nonce)})
         ready = await read_frame(reader, 8192, timeout=125)
         expected = proof(self.config.secret, "server", server_id, client_id, server_nonce, client_nonce)
         if ready.get("type") != "ready" or not isinstance(ready.get("proof"), str) or not hmac.compare_digest(expected, ready["proof"]):
             raise ValueError("server authentication failed")
         self.ledger.observe(ready.get("clock"))
-        return server_id
+        return server_id, 2 if ready.get("relay") == 2 else 1
 
-    async def _session(self, reader, writer, peer):
-        session = Session(self, reader, writer, peer)
-        self.session = session
-        self.last_sent_hash = ""
-        self.notify("connected", True)
+    async def _session(self, reader, writer, peer, relay):
+        session = Session(self, reader, writer, peer, relay)
+        self.sessions[peer] = session
+        self.connection_state()
         self.notify("status", "연결됨 · 새 복사부터 자동 동기화")
         try:
             await session.run()
         finally:
-            self.session = None
-            self.notify("connected", False)
+            self.sessions.pop(peer, None)
+            self.connection_state()
+
+    def connection_state(self):
+        self.notify("connected", len(self.sessions))
+        self.notify("devices", list(self.sessions))
+
+    def broadcast(self, snapshot, exclude=None):
+        if not self.config.can_send() or not self.ledger.current(snapshot.stamp):
+            return
+        for peer, session in list(self.sessions.items()):
+            if peer != exclude:
+                # Old clients accept only snapshots authored by their direct peer.
+                if session.relay < 2 and snapshot.stamp.device != self.config.device_id:
+                    self.notify("status", "여러 대 공유를 위해 모든 컴퓨터를 v1.2 이상으로 업데이트하세요.")
+                    continue
+                session.submit(snapshot)
 
     def submit(self, snapshot: Snapshot):
         if not self.loop or self.stopped.is_set():
             return
         def dispatch():
-            if self.session and self.config.can_send():
-                self.session.submit(snapshot)
+            if self.sessions and self.config.can_send():
+                self.broadcast(snapshot)
             else:
                 self.notify("status", "연결되지 않아 이번 복사는 전송되지 않았습니다.")
         self.loop.call_soon_threadsafe(dispatch)
 
     def stop(self):
+        self.stop_requested.set()
         if self.loop and not self.stopped.is_set():
             def finish():
                 self.stop_event.set()
@@ -211,9 +278,10 @@ class NetworkEngine(threading.Thread):
 
 
 class Session:
-    def __init__(self, engine, reader, writer, peer):
+    def __init__(self, engine, reader, writer, peer, relay=2):
         self.engine, self.reader, self.writer, self.peer = engine, reader, writer, peer
         self.config, self.ledger = engine.config, engine.ledger
+        self.relay = relay
         self.write_lock = asyncio.Lock()
         self.outgoing = None
         self.tasks = set()
@@ -273,7 +341,9 @@ class Session:
             return
         if self.outgoing:
             self.outgoing.cancel()
+        lease = self.engine.store.pin(snapshot.paths)
         self.outgoing = self.spawn(self._outbound(snapshot))
+        self.outgoing.add_done_callback(lambda task: self.engine.store.release(lease))
 
     async def _outbound(self, snapshot):
         transfer_id = str(uuid.uuid4())
@@ -281,8 +351,15 @@ class Session:
         try:
             if snapshot.paths:
                 self.engine.notify("status", "파일 확인 중 · 새 복사 시 이전 전송 취소")
-                manifest, sources = await asyncio.to_thread(scan_sources, snapshot.paths, self.config.file_limit,
-                                                           lambda: self.closed or not self.ledger.current(snapshot.stamp))
+                cancelled = threading.Event()
+                scan = asyncio.create_task(asyncio.to_thread(scan_sources, snapshot.paths, self.config.file_limit,
+                                           lambda: cancelled.is_set() or self.closed or not self.ledger.current(snapshot.stamp)))
+                try:
+                    manifest, sources = await asyncio.shield(scan)
+                except asyncio.CancelledError:
+                    cancelled.set()
+                    await asyncio.gather(scan, return_exceptions=True)
+                    raise
                 if not self.ledger.current(snapshot.stamp):
                     return
                 waiter = asyncio.get_running_loop().create_future()
@@ -324,7 +401,7 @@ class Session:
                 if self.ledger.current(snapshot.stamp):
                     await self.send({"type": "clipboard", "id": transfer_id, "stamp": snapshot.stamp.wire(), "formats": wire, "digest": snapshot.digest()})
         except (asyncio.CancelledError, InterruptedError):
-            if file_offer and not self.closed:
+            if file_offer and not self.closed and not self.engine.stop_requested.is_set():
                 await self.send({"type": "file_abort", "id": transfer_id})
         finally:
             self.waiters.pop(transfer_id, None)
@@ -348,13 +425,15 @@ class Session:
                 self.engine.store.retain(transfer)
             else:
                 transfer.remove()
+        if ok and self.config.role == "main":
+            self.engine.broadcast(snapshot, exclude=self.peer)
         if not self.closed:
             await self.send({"type": "ack", "id": event_id, "ok": ok, "formats": list(snapshot.formats) if not transfer else ["파일"]})
 
     def _stamp(self, message):
         valid_id(message.get("id"))
         stamp = Stamp.parse(message.get("stamp"))
-        if stamp.device != self.peer:
+        if stamp.device != self.peer and (self.config.role == "main" or self.relay < 2):
             raise ValueError("spoofed clipboard origin")
         return stamp
 
@@ -427,7 +506,7 @@ class Session:
                 transfer, self.receiving = self.receiving, None
                 try:
                     paths = await asyncio.to_thread(transfer.finish)
-                except Exception:
+                except BaseException:
                     transfer.remove()
                     raise
                 snapshot = Snapshot(self.in_formats, paths, self.in_stamp, self.in_sequence)
@@ -442,10 +521,18 @@ class Session:
             raise ValueError("unknown protocol message")
 
     async def _offer(self, event_id, stamp, manifest):
-        accepted = self.config.file_policy == "allow" or await self.engine.ask("files", {"count": len(manifest["entries"]), "total": manifest["total"]})
+        accepted = self.config.file_policy == "allow" or stamp.device in self.config.file_allow_ids or await self.engine.ask("files", {"device": stamp.device, "count": len(manifest["entries"]), "total": manifest["total"]},
+            lambda: self.ledger.current(stamp) and self.in_id == event_id and not self.closed and self.config.can_receive())
         accepted = accepted and self.ledger.current(stamp) and self.in_id == event_id and self.config.can_receive() and self.config.files and self.config.file_policy != "block"
         if accepted:
-            transfer = await asyncio.to_thread(ReceiveTransfer, self.engine.store.base, event_id, manifest)
+            create = asyncio.create_task(asyncio.to_thread(ReceiveTransfer, self.engine.store.base, event_id, manifest))
+            try:
+                transfer = await asyncio.shield(create)
+            except asyncio.CancelledError:
+                result = await asyncio.gather(create, return_exceptions=True)
+                if isinstance(result[0], ReceiveTransfer):
+                    result[0].remove()
+                raise
             if self.in_id == event_id and self.ledger.current(stamp) and not self.closed:
                 self.receiving = transfer
                 self.engine.notify("status", "승인한 파일 수신 중")
