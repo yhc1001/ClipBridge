@@ -172,6 +172,35 @@ def test_new_local_copy_is_not_overwritten_by_pending_receive(native):
     assert captured.get(timeout=5).formats["text"] == b"new local copy"
 
 
+def test_same_received_item_with_added_windows_format_does_not_cancel_file(native, tmp_path):
+    worker, ledger, captured, applied, statuses = native
+    first = Stamp(ledger.clock + 1, "ffffffff-ffff-4fff-bfff-ffffffffffff")
+    ledger.claim(first)
+    result = queue.Queue()
+    worker.apply(Snapshot(image_formats(Image.new("RGB", (20, 10), "blue")), [], first, sequence()), result.put)
+    assert result.get(timeout=5)
+    previous_sequence = sequence()
+    second = Stamp(ledger.clock + 1, first.device)
+    ledger.claim(second)
+    # Add a format without replacing the item, as synthesized Win32 formats do.
+    open_clipboard()
+    try:
+        cb.SetClipboardData(cb.RegisterClipboardFormat("ClipBridge.Test.Synthesized"), b"extra\0")
+    finally:
+        cb.CloseClipboard()
+    assert sequence() != previous_sequence
+    file = tmp_path / "received.txt"
+    file.write_bytes(b"file")
+    worker.apply(Snapshot({}, [str(file)], second, previous_sequence), result.put)
+    assert result.get(timeout=5)
+    open_clipboard()
+    try:
+        assert cb.GetClipboardData(win32con.CF_HDROP) == (str(file),)
+    finally:
+        cb.CloseClipboard()
+    assert captured.empty()
+
+
 def test_private_pairing_code_never_sent(native):
     worker, ledger, captured, applied, statuses = native
     worker.copy_private_text("CB1-private-test-code")

@@ -267,7 +267,7 @@ class ClipboardWorker(threading.Thread):
 
     def _apply_retry(self):
         snapshot, callback, expected, _, attempts = self.pending
-        if not self.config.can_receive() or not self.ledger.current(snapshot.stamp) or sequence() != expected or expected != self.seen_sequence:
+        if not self.config.can_receive() or not self.ledger.current(snapshot.stamp):
             self.pending = None
             callback(False)
             if sequence() != self.seen_sequence:
@@ -277,10 +277,22 @@ class ClipboardWorker(threading.Thread):
             cb.OpenClipboard(self.hwnd)
             try:
                 with self.ledger.lock:
-                    if self.ledger.latest != snapshot.stamp or sequence() != expected:
+                    if self.ledger.latest != snapshot.stamp:
                         self.pending = None
                         callback(False)
                         return
+                    if sequence() != expected or expected != self.seen_sequence:
+                        # Windows/clipboard viewers may add synthesized formats to
+                        # the same received item while a file transfer is running.
+                        # An unchanged private origin marker distinguishes that
+                        # from a new local copy, which must still win immediately.
+                        same_received_item = (self.own_marker and cb.IsClipboardFormatAvailable(self.marker_id)
+                            and raw_data(self.marker_id, 2048).rstrip(b"\0") == self.own_marker)
+                        if not same_received_item:
+                            self.pending = None
+                            self.capture_due = time.monotonic()
+                            callback(False)
+                            return
                     cb.EmptyClipboard()
                     self.own_marker = str(snapshot.stamp.wire()).encode("ascii")
                     cb.SetClipboardData(self.marker_id, self.own_marker + b"\0")

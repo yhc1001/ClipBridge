@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
+sys.stdout.reconfigure(encoding="utf-8")
 sys.path[:0] = [str(root), str(root / "tests")]
 import win32clipboard as cb
 from PIL import Image
@@ -65,7 +66,7 @@ try:
         store.save(local)
         device = Device(peer, base / "peer")
         device.start()
-        process = subprocess.Popen([str(root / "dist" / "v1.2.0" / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=12"], env=dict(os.environ, LOCALAPPDATA=str(base), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4())))
+        process = subprocess.Popen([str(root / "dist" / "v1.2.0" / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=25"], env=dict(os.environ, LOCALAPPDATA=str(base), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4())))
         try:
             wait_for(lambda: device.connected, 15)
             start = time.perf_counter()
@@ -97,18 +98,22 @@ try:
                     return list(cb.GetClipboardData(15)) if cb.IsClipboardFormatAvailable(15) else []
                 finally:
                     cb.CloseClipboard()
-            received = wait_for(paths)
+            try:
+                received = wait_for(paths)
+            except Exception:
+                print("Fixture peer status:", device.events[-10:])
+                raise
             assert Path(received[0]).read_bytes() == file.read_bytes()
             print("Packaged EXE real file transfer -> native CF_HDROP: PASS")
             time.sleep(.2)
             assert device.received.empty(), "received content must not loop back"
-            process.wait(timeout=20)
+            process.wait(timeout=35)
             assert process.returncode == 0
             assert not list((base / "ClipBridge" / "transfers").iterdir())
             print("Packaged EXE loop prevention / normal shutdown / transfer cleanup: PASS")
         finally:
             if process.poll() is None:
-                process.wait(timeout=25)
+                process.wait(timeout=35)
             device.stop()
             device.store.close()
 finally:
