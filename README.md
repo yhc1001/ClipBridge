@@ -55,4 +55,6 @@ Mac(macOS 14 이상)은 ZIP의 `ClipBridge.app`을 **응용 프로그램**으로
 
 서로 다른 OS 사이에서도 **파일 내용을 실제 전송**하고, 탐색기·Finder·Linux 파일 관리자에서 붙여넣을 수 있는 목록을 등록합니다. 앱별 실물 기기 붙여넣기·마우스 이동은 별도 확인이 필요합니다. Linux 검증 환경은 Ubuntu 24.04 X11입니다.
 
-[검증 결과](docs/VALIDATION-v1.4.md) · [여러 대 연결](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [지원 형식](docs/FORMATS.md) · [개발·빌드](docs/DEVELOPMENT.md)
+Windows 자동 검사 92개와 설치형의 보안 ACL 데스크톱 입력·서비스 복구·방화벽·제거 검사를 통과했습니다. 실제 UAC 승인 창·로그인 화면·실물 PC 재부팅은 미검증입니다.
+
+[검증 결과](docs/VALIDATION-v1.5.md) · [여러 대 연결](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [지원 형식](docs/FORMATS.md) · [개발·빌드](docs/DEVELOPMENT.md)

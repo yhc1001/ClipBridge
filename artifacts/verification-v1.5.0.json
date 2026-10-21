@@ -1,0 +1,49 @@
+{
+  "version": "1.5.0",
+  "date_kst": "2026-10-21",
+  "runtime_source_commit": "264186ab02e8f4f9a6172a0a984c2c7cd0e66e6b",
+  "runtime_sources_identical_since_recorded_commit": true,
+  "windows": {
+    "platform": "Windows Server 2022 x64; disposable GitHub-hosted runner",
+    "python": "3.13.16",
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39549341687",
+    "tests_passed": 92,
+    "os_native_modules_skipped": 2,
+    "system_deskflow_not_installed": "verified",
+    "general_exe_fresh_legacy_native_clipboard_listener_tray_clean_shutdown": "passed",
+    "bundled_engine_dependencies_version_private_profile_cleanup": "passed",
+    "msi_install_owner_sid_authenticated_system_service": "passed",
+    "native_core_system_active_console_session_uiaccess_mutual_tls": "passed",
+    "actual_native_mouse_key_in_system_administrators_only_private_desktop": "passed",
+    "native_ipc_acl_handshake_status_stop": "passed",
+    "arbitrary_execution_request_rejected": "passed",
+    "child_crash_reconnect": "passed",
+    "service_crash_scm_recovery_persisted_identity_reconnect": "passed",
+    "os_shutdown_suspend_then_service_restart_reconnect": "passed; service restart, not physical reboot",
+    "explicit_stop_then_service_restart_stays_disabled": "passed",
+    "actual_private_fixed_application_port_lan_tailscale_firewall_rule_and_cleanup": "passed",
+    "msi_service_and_registration_removal": "passed"
+  },
+  "other_platforms": {
+    "macos_linux_binary_version": "1.4.0",
+    "validation_record": "verification-v1.4.0.json",
+    "new_cross_os_physical_integration": "not verified"
+  },
+  "user_computer": {
+    "live_clipbridge_or_deskflow_replaced_or_terminated": false,
+    "service_installed": false,
+    "firewall_or_uac_policy_changed": false,
+    "user_desktop_or_clipboard_modified_during_uac_development": false
+  },
+  "not_verified": [
+    "Actual Windows UAC consent dialog, lock screen and sign-in screen",
+    "Actual physical Main/newserver power cycle and reconnect",
+    "RDP, multiple concurrent interactive sessions and fast user switching",
+    "Physical Windows 11 DPI, keyboard layouts and cross-OS input",
+    "Physical PicPick, Snipping Tool, browser, Word, Excel and file-manager paste",
+    "Moonlight paste UI",
+    "Maximum 512 MiB clipboard, 1 TiB files, 20000 entries and 16 clients",
+    "Secure attention sequence Ctrl+Alt+Del delivery"
+  ],
+  "packaging": "General EXE and UAC MSI are unchanged successful CI artifacts. Final validation documents accompany source/portable archives and GitHub. MSI documentation is a build-time snapshot. Binaries have no developer code-signing certificate."
+}

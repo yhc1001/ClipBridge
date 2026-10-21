@@ -32,6 +32,12 @@ if __name__ == "__main__":
     parser.add_argument("--windows-only", action="store_true", help="Windows-only release; Mac/Linux remain on their earlier release")
     arguments = parser.parse_args()
     executable = CArchiveReader(str(DIST / "ClipBridge.exe"))
+    if sys.platform == "win32":
+        import win32api
+        version = win32api.GetFileVersionInfo(str(DIST / "ClipBridge.exe"), "\\")
+        actual = (version["FileVersionMS"] >> 16, version["FileVersionMS"] & 0xffff,
+                  version["FileVersionLS"] >> 16, version["FileVersionLS"] & 0xffff)
+        assert actual == (*map(int, __version__.split(".")), 0), actual
     modules = executable.open_embedded_archive("PYZ.pyz").toc
     assert not any(name == "tools.legacy_input" or name.startswith("tools.legacy_input.") for name in modules)
     names = {name.replace("\\", "/"): name for name in executable.toc}
@@ -52,22 +58,29 @@ if __name__ == "__main__":
     else:
         # Read-only MSI database inspection: never installs or executes it.
         from win32com.client.dynamic import Dispatch
+        import pythoncom
+        def field(record, name, index):
+            return record._oleobj_.Invoke(record._oleobj_.GetIDsOfNames(name), 0, pythoncom.DISPATCH_PROPERTYGET, True, index)
         installer = Dispatch("WindowsInstaller.Installer")
         database = installer.OpenDatabase(str(DIST / "ClipBridge-UAC-setup-x64.msi"), 0)
         view = database.OpenView("SELECT `Name`, `StartType`, `StartName` FROM `ServiceInstall`")
         view.Execute(None)
         record = view.Fetch()
-        assert record.StringData(1) == "ClipBridgeInput" and record.IntegerData(2) == 2
-        assert record.StringData(3) in ("LocalSystem", "")
+        assert field(record, "StringData", 1) == "ClipBridgeInput" and field(record, "IntegerData", 2) == 2
+        assert field(record, "StringData", 3) in ("LocalSystem", "")
         assert view.Fetch() is None
         view.Close()
         view = database.OpenView("SELECT `Directory`, `DefaultDir` FROM `Directory`")
         view.Execute(None)
         directories = {}
         while (record := view.Fetch()) is not None:
-            directories[record.StringData(1)] = record.StringData(2)
-        assert directories.get("ClipBridgeInstallRoot") == "ClipBridge"
+            directories[field(record, "StringData", 1)] = field(record, "StringData", 2)
+        assert directories.get("ClipBridgeInstallRoot", "").split("|")[-1] == "ClipBridge", directories.get("ClipBridgeInstallRoot")
         assert "INSTALLFOLDER" not in directories
+        view.Close()
+        view = database.OpenView("SELECT `Value` FROM `Property` WHERE `Property`='ProductVersion'")
+        view.Execute(None)
+        assert field(view.Fetch(), "StringData", 1) == __version__
         view.Close()
         print("MSI fixed install location and automatic SYSTEM input service: PASS")
     for name in ("ClipBridge-source.zip", "ClipBridge-portable.zip"):
