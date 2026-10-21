@@ -1,6 +1,7 @@
 """Install and exercise the service ONLY on a disposable GitHub Windows runner."""
 import os
 import sys
+sys.stdout.reconfigure(encoding="utf-8")
 if sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true":
     raise SystemExit("This installer/input test is restricted to disposable Windows CI runners")
 

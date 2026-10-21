@@ -290,6 +290,8 @@ class InputManager(QObject):
         try:
             status = request({"operation": "status"})
             label = "UAC 서비스 · 입력 엔진 실행 중" if status["pid"] else "UAC 서비스 · 입력 연결 준비 중"
+            if status.get("connected"):
+                label = "UAC 서비스 · 마우스·키보드 연결됨"
             if status.get("error"):
                 label = "UAC 서비스 · 자동 재시도 (" + status["error"] + ")"
             self.notify("input_status", label)

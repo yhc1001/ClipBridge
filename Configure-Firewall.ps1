@@ -19,7 +19,7 @@ $taskAddress.ToString()
 }
 if (!$InputOnly -and !$ExePath) {
     $ExePath = Join-Path $PSScriptRoot 'ClipBridge.exe'
-    if (!(Test-Path -LiteralPath $ExePath)) { $ExePath = Join-Path $PSScriptRoot 'dist\v1.4.0\ClipBridge.exe' }
+    if (!(Test-Path -LiteralPath $ExePath)) { $ExePath = Join-Path $PSScriptRoot 'dist\v1.5.0\ClipBridge.exe' }
 }
 $taskRule = if ($InputOnly) { 'ClipBridge-v1-Input-Private' } else { 'ClipBridge-v1-Private' }
 $taskOptions = @{

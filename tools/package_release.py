@@ -37,7 +37,7 @@ for name in ("DESKFLOW-LICENSE.txt", "DESKFLOW-OPENSSL-EXCEPTION.txt"):
         shutil.copyfile(source, target)
 (licenses / "components.json").write_text(json.dumps(components, indent=2, ensure_ascii=False), encoding="utf-8")
 
-source_files = [root / name for name in ("main.py", "bootstrap.py", "build.ps1", "build-macos.sh", "Configure-Firewall.ps1", "requirements.txt", "requirements-lock.txt", "README.md", "RELEASE_NOTES.md", "THIRD_PARTY_NOTICES.md", ".gitignore", ".gitattributes")]
+source_files = [root / name for name in ("main.py", "bootstrap.py", "service_bootstrap.py", "build.ps1", "build-macos.sh", "Configure-Firewall.ps1", "requirements.txt", "requirements-lock.txt", "README.md", "RELEASE_NOTES.md", "THIRD_PARTY_NOTICES.md", ".gitignore", ".gitattributes")]
 for directory in ("clipbridge", "tests", "tools", "assets", "licenses", "artifacts", "docs", ".github"):
     source_files += [path for path in (root / directory).rglob("*") if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"]
 with zipfile.ZipFile(dist / "ClipBridge-source.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -55,7 +55,7 @@ with zipfile.ZipFile(dist / "ClipBridge-portable.zip", "w", compression=zipfile.
     for path in (root / "artifacts").glob("*.json"):
         archive.write(path, str(path.relative_to(root)))
 with (dist / "SHA256SUMS.txt").open("w", encoding="ascii") as output:
-    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz", "ClipBridge-input-sources.zip"):
+    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-UAC-setup-x64.msi", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz", "ClipBridge-input-sources.zip"):
         if not (dist / name).exists():
             continue
         digest = hashlib.sha256((dist / name).read_bytes()).hexdigest()

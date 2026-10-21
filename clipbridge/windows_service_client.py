@@ -3,6 +3,7 @@ import base64
 import ctypes
 import json
 import sys
+import time
 from pathlib import Path
 
 PIPE = r"\\.\pipe\ClipBridgeInput-v1"
@@ -89,9 +90,18 @@ def request(message, timeout=2):
     payload = json.dumps(message, ensure_ascii=True, separators=(",", ":")).encode()
     if len(payload) > MAX_REQUEST:
         raise ValueError("Input service request too large")
-    win32pipe.WaitNamedPipe(PIPE, 500)
-    handle = win32file.CreateFile(PIPE, win32con.GENERIC_READ | 0x2 | 0x100, 0, None,
-                                win32con.OPEN_EXISTING, win32con.FILE_FLAG_OVERLAPPED | 0x00110000, None)
+    import pywintypes
+    deadline = time.monotonic() + .8
+    while True:
+        try:
+            win32pipe.WaitNamedPipe(PIPE, 100)
+            handle = win32file.CreateFile(PIPE, win32con.GENERIC_READ | 0x2 | 0x100, 0, None,
+                                        win32con.OPEN_EXISTING, win32con.FILE_FLAG_OVERLAPPED | 0x00110000, None)
+            break
+        except pywintypes.error as error:
+            if error.winerror not in (2, 121, 231) or time.monotonic() >= deadline:
+                raise
+            time.sleep(.02)
     try:
         verify_server(win32pipe.GetNamedPipeServerProcessId(handle), installed["executable"])
         win32pipe.SetNamedPipeHandleState(handle, win32pipe.PIPE_READMODE_MESSAGE, None, None)

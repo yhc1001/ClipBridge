@@ -84,7 +84,7 @@ def create_input_process(program, arguments, environment, session):
         with native_library_path():
             process, thread, pid, _ = win32process.CreateProcessAsUser(primary, program,
                 subprocess.list2cmdline([program, *arguments]), None, None, False, flags, environment, str(Path(program).parent), startup)
-        job = win32job.CreateJobObject(None, None)
+        job = win32job.CreateJobObject(None, "")
         limits = win32job.QueryInformationJobObject(job, win32job.JobObjectExtendedLimitInformation)
         limits["BasicLimitInformation"]["LimitFlags"] = win32job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
         win32job.SetInformationJobObject(job, win32job.JobObjectExtendedLimitInformation, limits)
@@ -139,6 +139,8 @@ class InputController:
         self.last_error = ""
         self.identity = {}
         self.next_start = 0
+        self.core_control = None
+        self.core_started = 0
 
     def save(self):
         temporary = self.path.with_suffix(".tmp")
@@ -146,6 +148,15 @@ class InputController:
         temporary.replace(self.path)
 
     def stop_child(self):
+        if self.child and self.core_control:
+            try:
+                self.core_control.stop()
+                win32event.WaitForSingleObject(self.child, 2000)
+            except Exception:
+                pass
+        if self.core_control:
+            self.core_control.close()
+            self.core_control = None
         if self.job:
             self.job.Close()
             self.job = None
@@ -186,7 +197,9 @@ class InputController:
                     self.save()
                 self.stop_child()
             return {"ok": True, "enabled": self.armed, "pid": self.pid, "session": self.session,
-                    "service": SERVICE_NAME, "error": self.last_error, "identity": self.identity}
+                    "service": SERVICE_NAME, "error": self.last_error, "identity": self.identity,
+                    "native_ipc_secured": self.core_control is not None,
+                    "connected": bool(self.core_control and self.core_control.connected)}
 
     def tick(self):
         with self.lock:
@@ -194,6 +207,18 @@ class InputController:
             alive = self.child and win32process.GetExitCodeProcess(self.child) == win32con.STILL_ACTIVE
             if self.child and not alive:
                 self.last_error = "InputCoreExited:" + str(win32process.GetExitCodeProcess(self.child))
+            if alive:
+                try:
+                    if self.core_control is None:
+                        from .windows_core_control import CoreControl
+                        self.core_control = CoreControl(self.pid)
+                    self.core_control.poll()
+                except Exception as error:
+                    if time.monotonic() - self.core_started >= 3:
+                        self.last_error = "InputCoreIpc:" + type(error).__name__
+                        self.stop_child()
+                        self.next_start = time.monotonic() + 5
+                    return
             restart = session != self.session or self.applied != self.generation or not alive
             if not self.armed or session == 0xFFFFFFFF:
                 if self.child:
@@ -213,9 +238,15 @@ class InputController:
                     update(program, settings["port"])
                 env = {key: environment.value(key) for key in environment.keys()}
                 self.child, self.job, self.pid, self.identity = create_input_process(program, arguments, env, session)
+                self.core_started = time.monotonic()
                 self.session, self.applied = session, self.generation
             except Exception as error:
-                self.last_error = type(error).__name__ + ":" + str(getattr(error, "winerror", ""))
+                # Report only a source location, never settings, certificates or
+                # private values from a traceback/local variables.
+                import traceback
+                site = traceback.extract_tb(error.__traceback__)[-1]
+                self.last_error = (type(error).__name__ + ":" + str(getattr(error, "winerror", ""))
+                                   + ":" + Path(site.filename).name + ":" + str(site.lineno))
                 self.stop_child()
 
 

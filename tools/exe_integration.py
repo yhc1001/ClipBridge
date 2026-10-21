@@ -16,6 +16,7 @@ import win32clipboard as cb
 from PIL import Image
 from clipbridge.clipboard import raw_data
 from clipbridge.config import ConfigStore
+from clipbridge import __version__
 from clipbridge.images import image_formats
 from clipbridge.clipboard_win import MARKER
 from clipbridge.model import FORMATS
@@ -68,7 +69,7 @@ try:
         store.save(local)
         device = Device(peer, base / "peer")
         device.start()
-        process = subprocess.Popen([str(root / "dist" / "v1.4.0" / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=25"], env=dict(os.environ, LOCALAPPDATA=str(base), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4())))
+        process = subprocess.Popen([str(root / "dist" / ("v" + __version__) / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=25"], env=dict(os.environ, LOCALAPPDATA=str(base), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4())))
         try:
             wait_for(lambda: device.connected, 15)
             start = time.perf_counter()

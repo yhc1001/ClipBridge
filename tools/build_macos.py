@@ -10,6 +10,8 @@ if sys.platform != "darwin":
     raise SystemExit("Mac 빌드는 macOS에서 실행하세요.")
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
+sys.path.insert(0, str(root))
+from clipbridge import __version__
 from PyInstaller.__main__ import run
 from prepare_input_bundle import prepare
 input_component = prepare()
@@ -38,7 +40,7 @@ metadata["hashes"] = {p.relative_to(component).as_posix(): hashlib.sha256(p.read
 (component / "bundle.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 info = bundle / "Contents" / "Info.plist"
 value = plistlib.loads(info.read_bytes())
-value.update({"CFBundleShortVersionString": "1.4.0", "CFBundleVersion": "1.4.0", "LSUIElement": True,
+value.update({"CFBundleShortVersionString": __version__, "CFBundleVersion": __version__, "LSUIElement": True,
               "NSPasteboardUsageDescription": "복사한 내용을 연결한 컴퓨터와 공유합니다."})
 info.write_bytes(plistlib.dumps(value))
 subprocess.run(["/usr/bin/codesign", "--force", "--sign", "-", str(bundle)], check=True)

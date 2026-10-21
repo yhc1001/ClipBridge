@@ -19,7 +19,8 @@ DESTINATION = ROOT / "dist" / ("v" + __version__)
 PAYLOAD = ROOT / "dist/uac-payload"
 component = prepare()
 system = Path(os.environ["SystemRoot"])
-os.environ["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), sys.base_prefix, str(system / "System32"), str(system), os.environ["PATH"]])
+DOTNET = shutil.which("dotnet")
+os.environ["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), sys.base_prefix, str(system / "System32"), str(system)])
 
 
 def freeze(entry, name, destination, extra=()):
@@ -43,7 +44,7 @@ def installer():
         UpgradeCode="4736D2D4-116F-4E35-A379-BA46B8442C34", Scope="perMachine", InstallerVersion="500", Language="1042")
     element(package, "MajorUpgrade", DowngradeErrorMessage="더 최신 ClipBridge UAC 버전이 설치되어 있습니다.")
     element(package, "MediaTemplate", EmbedCab="yes", CompressionLevel="high")
-    directory = element(element(package, "StandardDirectory", Id="ProgramFiles64Folder"), "Directory", Id="INSTALLFOLDER", Name="ClipBridge")
+    directory = element(element(package, "StandardDirectory", Id="ProgramFiles64Folder"), "Directory", Id="ClipBridgeInstallRoot", Name="ClipBridge")
     directories = {Path("."): directory}
     feature = element(package, "Feature", Id="Complete", Title="ClipBridge", Level="1")
     service_id = None
@@ -71,7 +72,7 @@ def installer():
     element(feature, "ComponentRef", Id="ServiceRegistration")
     menu = element(element(package, "StandardDirectory", Id="ProgramMenuFolder"), "Directory", Id="ProgramMenuClipBridge", Name="ClipBridge")
     shortcut = element(menu, "Component", Id="MenuShortcut", Guid="0A2AE69C-6C37-4DD4-A810-08FD9FB661C2")
-    element(shortcut, "Shortcut", Id="StartMenuShortcut", Name="ClipBridge", Target="[INSTALLFOLDER]ClipBridge.exe", WorkingDirectory="INSTALLFOLDER")
+    element(shortcut, "Shortcut", Id="StartMenuShortcut", Name="ClipBridge", Target="[ClipBridgeInstallRoot]ClipBridge.exe", WorkingDirectory="ClipBridgeInstallRoot")
     element(shortcut, "RemoveFolder", Id="RemoveProgramMenu", On="uninstall")
     element(shortcut, "RegistryValue", Root="HKLM", Key=r"SOFTWARE\ClipBridge\InputService", Name="MenuInstalled", Type="integer", Value="1", KeyPath="yes")
     element(feature, "ComponentRef", Id="MenuShortcut")
@@ -80,7 +81,9 @@ def installer():
     DESTINATION.mkdir(parents=True, exist_ok=True)
     wix = ROOT / "build/wix-tool/wix.exe"
     if not wix.is_file():
-        subprocess.run(["dotnet", "tool", "install", "wix", "--version", "4.0.6", "--tool-path", str(wix.parent)], check=True)
+        if not DOTNET:
+            raise RuntimeError("A .NET SDK is required to build the installer")
+        subprocess.run([DOTNET, "tool", "install", "wix", "--version", "4.0.6", "--tool-path", str(wix.parent)], check=True)
     target = DESTINATION / "ClipBridge-UAC-setup-x64.msi"
     subprocess.run([str(wix), "build", "-arch", "x64", str(source), "-o", str(target)], check=True,
                    env=dict(os.environ, DOTNET_ROLL_FORWARD="Major"))
