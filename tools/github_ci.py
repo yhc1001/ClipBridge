@@ -77,7 +77,7 @@ def main():
         if run["conclusion"] != "success":
             raise RuntimeError("Only completed successful builds can be downloaded")
         artifacts = github_request(token, PREFIX + f"/actions/runs/{args.run}/artifacts")
-        root = Path(__file__).resolve().parents[1] / "dist" / "v1.2.0"
+        root = Path(__file__).resolve().parents[1] / "dist" / "v1.2.1"
         root.mkdir(parents=True, exist_ok=True)
         for artifact in artifacts["artifacts"]:
             data = download(token, PREFIX + f"/actions/artifacts/{artifact['id']}/zip")

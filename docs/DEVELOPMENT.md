@@ -10,7 +10,7 @@ cd ClipBridge
 .\build.ps1
 ```
 
-결과: `dist/v1.2.0/ClipBridge.exe`. 기존 실행 파일을 덮어쓰지 않고 버전별 폴더에 빌드합니다. `tools/build_exe.py`가 외부 도구의 ICU DLL 충돌을 방지합니다. v1.0.0 Windows 빌드 재현용 의존성 목록은 `requirements-lock.txt`에 있습니다.
+결과: `dist/v1.2.1/ClipBridge.exe`. 기존 실행 파일을 덮어쓰지 않고 버전별 폴더에 빌드합니다. `tools/build_exe.py`가 외부 도구의 ICU DLL 충돌을 방지합니다. v1.0.0 Windows 빌드 재현용 의존성 목록은 `requirements-lock.txt`에 있습니다.
 
 ## macOS
 

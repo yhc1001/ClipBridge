@@ -15,4 +15,4 @@ if (!$SkipTests) {
 & $taskPython tools\make_icon.py
 & $taskPython tools\build_exe.py
 if ($LASTEXITCODE -ne 0) { throw 'EXE 빌드 실패' }
-Write-Output '빌드 완료: dist\v1.2.0\ClipBridge.exe'
+Write-Output '빌드 완료: dist\v1.2.1\ClipBridge.exe'

@@ -39,7 +39,8 @@ class Config:
     text: bool = True
     images: bool = True
     files: bool = True
-    file_policy: str = "ask"
+    file_policy: str = "allow"
+    file_policy_version: int = 1
     file_allow_ids: list = field(default_factory=list)
     direction: str = "both"
     paused: bool = False
@@ -88,9 +89,6 @@ class Config:
         """Keep the old 1:1 peer's key; issue a separate invitation for new devices."""
         if self.role == "main" and self.peer_id:
             self.trusted_peers.setdefault(self.peer_id, {"secret": self.protected_secret, "name": "기존 컴퓨터"})
-            if self.file_policy == "allow":
-                self.file_allow_ids = list(dict.fromkeys(self.file_allow_ids + [self.peer_id]))
-                self.file_policy = "ask"
             self.peer_id = self.peer_pin = ""
             self.protected_secret = protect(secrets.token_bytes(32))
             return True
@@ -119,12 +117,14 @@ class ConfigStore:
             config.validate(connection=False)
             if len(config.secret) != 32:
                 raise ValueError("DPAPI secret error")
-            changed = False
-            if "file_allow_ids" not in value and config.file_policy == "allow" and config.peer_id:
-                config.file_allow_ids = [config.peer_id]
-                config.file_policy = "ask"
+            changed = config.migrate_trust()
+            if "file_policy_version" not in value:
+                # Upgrade the old confirmation default once. Later explicit
+                # manual approval/block choices remain unchanged on restart.
+                if config.file_policy == "ask":
+                    config.file_policy = "allow"
                 changed = True
-            if config.migrate_trust() or changed:
+            if changed:
                 self.save(config)
             return config
         config = Config()

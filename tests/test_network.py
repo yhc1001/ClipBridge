@@ -144,6 +144,7 @@ def test_file_denial_pause_and_direction(pair, tmp_path):
     assert a.received.empty()
     a.config.direction = b.config.direction = "both"
     b.approve = False
+    b.config.file_policy = "ask"
     file = tmp_path / "denied.txt"
     file.write_text("denied")
     a.send(paths=[str(file)])

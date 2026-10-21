@@ -535,7 +535,7 @@ class Session:
                 raise
             if self.in_id == event_id and self.ledger.current(stamp) and not self.closed:
                 self.receiving = transfer
-                self.engine.notify("status", "승인한 파일 수신 중")
+                self.engine.notify("status", "파일 자동 수신 중" if self.config.file_policy == "allow" else "승인한 파일 수신 중")
             else:
                 transfer.remove()
                 accepted = False

@@ -122,7 +122,7 @@ class Window(QMainWindow):
         self.refresh_devices()
         options = QGroupBox("자동으로 공유할 내용")
         form = QFormLayout(options)
-        self.text, self.images, self.files, self.autostart = QCheckBox("글자와 서식"), QCheckBox("이미지"), QCheckBox("파일 · 처음 받을 때 승인"), QCheckBox("로그인하면 자동으로 켜기")
+        self.text, self.images, self.files, self.autostart = QCheckBox("글자와 서식"), QCheckBox("이미지"), QCheckBox("파일 · 연결된 컴퓨터끼리 자동 공유"), QCheckBox("로그인하면 자동으로 켜기")
         for checkbox, key in ((self.text, "text"), (self.images, "images"), (self.files, "files"), (self.autostart, "autostart")):
             checkbox.setChecked(getattr(self.config, key))
             form.addRow(checkbox)
@@ -131,7 +131,7 @@ class Window(QMainWindow):
         self.direction.addItem("허브 → 참여 컴퓨터만", "main_to_server")
         self.direction.setCurrentIndex(0 if self.config.direction == "both" else 1)
         self.file_policy = QComboBox()
-        for label, value in (("전송마다 수신 승인", "ask"), ("신뢰한 PC에서 항상 수신", "allow"), ("파일 수신·전송 차단", "block")):
+        for label, value in (("확인 없이 자동 수신 (기본)", "allow"), ("전송마다 확인 (선택)", "ask"), ("파일 수신·전송 차단", "block")):
             self.file_policy.addItem(label, value)
         self.file_policy.setCurrentIndex(self.file_policy.findData(self.config.file_policy))
         self.clip_limit, self.file_limit = QSpinBox(), QSpinBox()
@@ -147,7 +147,7 @@ class Window(QMainWindow):
         advanced_form.addRow("연결 포트 (양쪽 동일)", self.port)
         advanced_form.addRow("허브 수신 IP", self.bind)
         advanced_form.addRow("공유 방향", self.direction)
-        advanced_form.addRow("파일 승인", self.file_policy)
+        advanced_form.addRow("파일 수신 방식", self.file_policy)
         advanced_form.addRow("클립보드 제한 (MiB)", self.clip_limit)
         advanced_form.addRow("파일 합계 제한 (MiB)", self.file_limit)
         reset = QPushButton("등록한 컴퓨터 연결 초기화")
@@ -304,8 +304,8 @@ class Window(QMainWindow):
         self.config.trusted_peers = {}
         self.config.file_allow_ids = []
         self.config.protected_secret = protect(secrets.token_bytes(32))
-        self.config.file_policy = "ask"
-        self.file_policy.setCurrentIndex(0)
+        self.config.file_policy = "allow"
+        self.file_policy.setCurrentIndex(self.file_policy.findData("allow"))
         self.store.save(self.config)
         self.update_pair_state()
         self.refresh_devices()

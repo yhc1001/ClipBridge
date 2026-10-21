@@ -95,6 +95,7 @@ def test_offline_client_does_not_interrupt_others_or_replay_on_reconnect(group):
 def test_file_relay_independent_recipient_approval_and_multiple_roots(group, tmp_path):
     hub, source, allowed, denied = group
     denied.approve = False
+    denied.config.file_policy = "ask"
     folder = tmp_path / "폴더"
     folder.mkdir()
     (folder / "one.txt").write_text("실제 파일", encoding="utf-8")
@@ -145,6 +146,7 @@ def test_one_pending_file_approval_does_not_block_other_recipients_or_new_text(g
     hub, source, waiting, other = group
     pending = queue.Queue()
     waiting.engine.approve = lambda kind, info, future: pending.put(future)
+    waiting.config.file_policy = "ask"
     file = tmp_path / "pending.txt"
     file.write_bytes(b"file content")
     source.send(paths=[str(file)])
@@ -160,6 +162,7 @@ def test_one_pending_file_approval_does_not_block_other_recipients_or_new_text(g
 def test_file_permission_remembered_for_origin_is_not_shared_with_other_devices(group, tmp_path):
     hub, source, allowed, denied = group
     allowed.approve = denied.approve = False
+    allowed.config.file_policy = denied.config.file_policy = "ask"
     allowed.config.file_allow_ids.append(source.config.device_id)
     file = tmp_path / "allowed.txt"
     file.write_bytes(b"per origin")
@@ -212,7 +215,7 @@ def test_legacy_one_to_one_config_migrates_without_losing_key(tmp_path):
     loaded = store.load()
     assert unprotect(loaded.trusted_peers[peer]["secret"]) == original_key
     assert loaded.secret != original_key and loaded.peer_id == ""
-    assert loaded.file_policy == "ask" and loaded.file_allow_ids == [peer]
+    assert loaded.file_policy == "allow"
     assert store.load().trusted_peers == loaded.trusted_peers
 
 
@@ -237,13 +240,53 @@ def test_relay_file_lease_survives_replacement_until_all_recipients_finish(tmp_p
 
 
 @pytest.mark.parametrize("role", ["main", "server"])
-def test_old_always_allow_file_setting_does_not_grant_access_to_new_origins(tmp_path, role):
+def test_old_always_allow_file_setting_stays_automatic_after_upgrade(tmp_path, role):
     store = ConfigStore(tmp_path)
     config = store.load()
     config.role, config.peer_id, config.file_policy = role, str(uuid.uuid4()), "allow"
     store.save(config)
     old = json.loads(store.path.read_text(encoding="utf-8"))
-    del old["trusted_peers"], old["file_allow_ids"]
+    del old["trusted_peers"], old["file_allow_ids"], old["file_policy_version"]
     store.path.write_text(json.dumps(old), encoding="utf-8")
     migrated = store.load()
-    assert migrated.file_policy == "ask" and migrated.file_allow_ids == [config.peer_id]
+    assert migrated.file_policy == "allow"
+
+
+def test_default_file_sharing_between_all_devices_never_requests_approval(group, tmp_path):
+    approvals = []
+    def reject_any_prompt(kind, info, future):
+        approvals.append(kind)
+        future.set_result(False)
+    for device in group:
+        device.engine.approve = reject_any_prompt
+    for index, source in enumerate(group):
+        file = tmp_path / f"automatic-{index}.txt"
+        file.write_bytes(f"automatic file {index}".encode())
+        sent = source.send(paths=[str(file)])
+        for receiver in group:
+            if receiver is not source:
+                snapshot = receiver.received.get(timeout=10)
+                assert snapshot.stamp == sent.stamp
+                assert Path(snapshot.paths[0]).read_bytes() == file.read_bytes()
+        assert source.received.empty()
+    assert approvals == []
+
+
+@pytest.mark.parametrize("previous,expected", [("ask", "allow"), ("allow", "allow"), ("block", "block")])
+def test_old_file_policy_upgrades_once_then_preserves_explicit_user_choice(tmp_path, previous, expected):
+    store = ConfigStore(tmp_path)
+    config = store.load()
+    config.file_policy = previous
+    config.files = False
+    store.save(config)
+    old = json.loads(store.path.read_text(encoding="utf-8"))
+    del old["file_policy_version"]
+    store.path.write_text(json.dumps(old), encoding="utf-8")
+    loaded = store.load()
+    assert loaded.file_policy == expected and not loaded.files
+    assert loaded.protected_secret == config.protected_secret
+    assert loaded.peer_id == config.peer_id
+    assert json.loads(store.path.read_text(encoding="utf-8"))["file_policy_version"] == 1
+    loaded.file_policy = "ask"
+    store.save(loaded)
+    assert store.load().file_policy == "ask"
