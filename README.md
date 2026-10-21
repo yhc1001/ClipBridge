@@ -4,7 +4,7 @@
 
 ## 다운로드
 
-[최신 실행 파일](https://github.com/yhc1001/ClipBridge/releases/latest)에서 내 컴퓨터에 맞는 ZIP을 받으세요. 비공개 저장소이므로 GitHub 로그인이 필요합니다.
+[최신 실행 파일](https://github.com/yhc1001/ClipBridge/releases/latest)에서 내 컴퓨터에 맞는 ZIP을 받으세요.
 
 | 컴퓨터 | 받을 파일 |
 |---|---|

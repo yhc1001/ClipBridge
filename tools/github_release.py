@@ -1,4 +1,4 @@
-"""Create a private repository and publish verified Windows release assets.
+"""Create a private repository or publish assets to the user's existing repository.
 
 Authentication stays in Git Credential Manager/environment and is never written.
 """
@@ -50,8 +50,8 @@ def main():
         print(json.dumps({"exists": True, "name": repo["full_name"], "private": repo["private"],
                           "url": repo["html_url"], "size": repo["size"], "default_branch": repo["default_branch"]}))
         return
-    if not repo["private"]:
-        raise RuntimeError("This publisher requires a private repository.")
+    if repo["owner"]["login"].casefold() != owner.casefold():
+        raise RuntimeError("Release repository must belong to the signed-in user.")
     prefix = f"/repos/{repo['full_name']}"
     try:
         release = github_request(token, prefix + "/releases/tags/" + urllib.parse.quote(args.tag, safe=""))
