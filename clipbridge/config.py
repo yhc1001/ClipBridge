@@ -124,7 +124,13 @@ class ConfigStore:
             changed = config.migrate_trust()
             if config.input_settings.get("certificate"):
                 from .input_engine import migrate_identity
-                changed = migrate_identity(config.input_settings) or changed
+                try:
+                    changed = migrate_identity(config.input_settings) or changed
+                except (OSError, ValueError):
+                    # Missing/invalid legacy identity must not break clipboard
+                    # startup. Stop input until the user registers the new pin.
+                    config.input_settings.update(certificate="", enabled=False, identity_missing=True)
+                    changed = True
             if "file_policy_version" not in value:
                 # Upgrade the old confirmation default once. Later explicit
                 # manual approval/block choices remain unchanged on restart.

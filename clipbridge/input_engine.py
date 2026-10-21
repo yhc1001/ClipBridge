@@ -168,6 +168,9 @@ def migrate_identity(settings):
     """Own a protected identity before the original Deskflow can be removed."""
     if not settings.get("certificate"):
         return False
+    if settings.get("protected_identity"):
+        settings["certificate"] = ""
+        return True
     raw = Path(settings["certificate"]).read_bytes()
     match = re.search(br"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", raw, re.S)
     if not match:

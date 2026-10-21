@@ -50,3 +50,14 @@ def test_shipped_engine_probe_without_installed_deskflow(qt_app, tmp_path, monke
     config = ConfigStore(tmp_path / "probe").load()
     probe(config, tmp_path / "probe")
     assert json.loads((tmp_path / "probe/input-probe.json").read_text())["private_profile_cleaned"]
+
+
+def test_legacy_uninstall_does_not_break_clipboard_startup(tmp_path):
+    store = ConfigStore(tmp_path)
+    config = store.load()
+    config.input_settings = {**defaults(), "enabled": True, "certificate": str(tmp_path / "removed-Deskflow/identity.pem")}
+    store.save(config)
+    loaded = store.load()
+    assert not loaded.input_settings["enabled"] and loaded.input_settings["identity_missing"]
+    assert not loaded.input_settings["certificate"]
+    assert loaded.device_id == config.device_id and loaded.text and loaded.images

@@ -86,7 +86,7 @@ class Window(QMainWindow):
         layout.addWidget(self.connection)
         layout.addWidget(self.status)
         layout.addWidget(self.last)
-        self.input_status = QLabel("마우스·키보드 공유: 꺼짐 · 기존 Deskflow는 그대로 사용 가능")
+        self.input_status = QLabel("마우스·키보드 공유: 기존 인증서 없음 · 마우스 연결 코드를 다시 등록하세요" if self.config.input_settings.get("identity_missing") else "마우스·키보드 공유: 꺼짐 · 내장 엔진 사용")
         self.input_status.setWordWrap(True)
         layout.addWidget(self.input_status)
         group = QGroupBox("처음 한 번만 연결하세요")
