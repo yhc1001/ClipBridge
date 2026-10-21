@@ -107,6 +107,9 @@ def verify(peer):
         peer.send(b"DKDN" + struct.pack("!HHH", ord("a"), 0, 30))
         peer.send(b"DKUP" + struct.pack("!HHH", ord("a"), 0, 30))
         assert probe.key.wait(6), "Native SYSTEM input did not reach the private desktop window"
+        end = time.monotonic() + 2
+        while time.monotonic() < end and (not probe.cursor or abs(probe.cursor[0] - 180) > 2 or abs(probe.cursor[1] - 140) > 2):
+            time.sleep(.02)
         assert probe.cursor and abs(probe.cursor[0] - 180) <= 2 and abs(probe.cursor[1] - 140) <= 2, probe.cursor
         print("Native mutual-TLS mouse/key input on SYSTEM/Admin-only Windows desktop: PASS", flush=True)
     finally:

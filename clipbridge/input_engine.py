@@ -293,7 +293,9 @@ class InputManager(QObject):
             if status.get("connected"):
                 label = "UAC 서비스 · 마우스·키보드 연결됨"
             if status.get("error"):
-                label = "UAC 서비스 · 자동 재시도 (" + status["error"] + ")"
+                label = ("기존 마우스 공유 프로그램을 먼저 정지하세요."
+                         if status["error"].startswith("OtherInputCoreRunning")
+                         else "UAC 서비스 · 자동 재시도 (" + status["error"] + ")")
             self.notify("input_status", label)
         except Exception:
             self.notify("input_status", "UAC 서비스 · 연결 자동 복구 중")
@@ -333,7 +335,7 @@ class InputManager(QObject):
                 raise ValueError("기존 Deskflow가 실행 중입니다. Deskflow에서 정지한 뒤 마우스 공유를 켜세요.")
             required = "trusted_servers" if settings["mode"] == "client" else "trusted_clients"
             if not settings[required]:
-                raise ValueError("상대 마우스 연결 코드를 추가하거나 기존 Deskflow 설정을 가져오세요.")
+                raise ValueError("상대 마우스 연결 코드를 먼저 등록하세요.")
             base = self.directory / "input-runtime"
             private_directory(base)
             # The application has a single-instance lock and no native core is

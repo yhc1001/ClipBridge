@@ -231,6 +231,11 @@ class InputController:
             self.stop_child()
             self.next_start = time.monotonic() + 5
             try:
+                import psutil
+                if any(process.info["name"] and process.info["name"].lower() in
+                       ("deskflow-core.exe", "deskflow-server.exe", "deskflow-client.exe")
+                       for process in psutil.process_iter(["name"])):
+                    raise RuntimeError("OtherInputCoreRunning")
                 settings = {**defaults(), **self.state["settings"], "protected_identity": self.state["protected_identity"]}
                 program, arguments, environment = prepare_profile(SimpleNamespace(), settings, self.profile, copy_windows_runtime=False)
                 if settings["mode"] == "server":
@@ -245,7 +250,8 @@ class InputController:
                 # private values from a traceback/local variables.
                 import traceback
                 site = traceback.extract_tb(error.__traceback__)[-1]
-                self.last_error = (type(error).__name__ + ":" + str(getattr(error, "winerror", ""))
+                kind = "OtherInputCoreRunning" if isinstance(error, RuntimeError) and str(error) == "OtherInputCoreRunning" else type(error).__name__
+                self.last_error = (kind + ":" + str(getattr(error, "winerror", ""))
                                    + ":" + Path(site.filename).name + ":" + str(site.lineno))
                 self.stop_child()
 

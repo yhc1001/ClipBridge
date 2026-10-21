@@ -84,6 +84,8 @@ def request(message, timeout=2):
     import win32con, win32file, win32pipe
     from multiprocessing.connection import PipeConnection
     from .service_policy import MAX_REQUEST
+    if message.get("operation") in ("stop", "suspend"):
+        timeout = max(timeout, 8)  # allow native key/cursor release before job close
     installed = installation()
     if not installed:
         raise RuntimeError("ClipBridge UAC 설치형이 등록되지 않았습니다.")

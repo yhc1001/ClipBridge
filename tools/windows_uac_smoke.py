@@ -199,7 +199,10 @@ def check():
                 trusted_servers=[fingerprint(server.cert_pem)], screens=[{"name": "CIClient", "x": 0, "y": 0}])
             service.configure(config, settings)
             wait(lambda: peer.count >= 1)
-            status = service.request({"operation": "status"})
+            def connected_status():
+                value = service.request({"operation": "status"})
+                return value if value.get("native_ipc_secured") and value.get("connected") else None
+            status = wait(connected_status)
             assert status["pid"] and status["identity"]["sid"] == "S-1-5-18", status
             assert status["identity"]["ui_access"] and status["identity"]["session"] == win32ts.WTSGetActiveConsoleSessionId(), status
             print("Installed native core: mutual TLS, SYSTEM, active console session, UIAccess token: PASS", flush=True)
@@ -221,9 +224,42 @@ def check():
             wait(lambda: peer.count >= 3, 45)
             assert scm_status()["ProcessId"] != daemon
             print("SCM service failure restart and persisted identity reconnect: PASS", flush=True)
+            service.request({"operation": "suspend"})
+            assert service.request({"operation": "status"})["pid"] == 0
+            service.control(False)
+            wait(lambda: scm_status()["CurrentState"] == win32service.SERVICE_STOPPED)
+            service.control(True)
+            wait(lambda: peer.count >= 4)
+            print("OS shutdown suspend retains enabled input for next service start: PASS", flush=True)
             service.request({"operation": "stop"})
             assert service.request({"operation": "status"})["pid"] == 0
             print("Explicit stop closes input child: PASS", flush=True)
+            service.control(False)
+            wait(lambda: scm_status()["CurrentState"] == win32service.SERVICE_STOPPED)
+            service.control(True)
+            time.sleep(1)
+            assert service.request({"operation": "status"})["pid"] == 0
+            print("Explicit stop remains disabled after service restart: PASS", flush=True)
+            # Exercise actual firewall COM registration only on the disposable
+            # runner. Bind an available port; only our fixed installed core can
+            # use this private-network inbound rule.
+            from win32com.client.dynamic import Dispatch
+            from clipbridge.windows_input_firewall import RULE
+            with socket.socket() as free:
+                free.bind(("127.0.0.1", 0))
+                port = free.getsockname()[1]
+            server_settings = dict(settings, mode="server", port=port, trusted_clients=[fingerprint(server.cert_pem)])
+            service.configure(config, server_settings)
+            policy = Dispatch("HNetCfg.FwPolicy2")
+            rule = wait(lambda: policy.Rules.Item(RULE))
+            assert rule.LocalPorts == str(port) and rule.Protocol == 6 and rule.Profiles == 2
+            assert rule.Direction == 1 and rule.Action == 1 and rule.Enabled and not rule.EdgeTraversal
+            assert "LocalSubnet" in rule.RemoteAddresses and "100.64.0.0" in rule.RemoteAddresses
+            expected = Path(service.installation()["executable"]).parent / "_internal/input-engine/deskflow-core.exe"
+            assert Path(rule.ApplicationName).resolve() == expected.resolve(), rule.ApplicationName
+            service.request({"operation": "stop"})
+            assert not any(item.Name == RULE for item in policy.Rules)
+            print("Private-only fixed-application/port LAN/Tailscale firewall registration and cleanup: PASS", flush=True)
         except Exception:
             diagnostics()
             try:

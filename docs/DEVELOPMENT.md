@@ -10,7 +10,9 @@ cd ClipBridge
 .\build.ps1
 ```
 
-결과: `dist/v1.4.0/ClipBridge.exe`. 기존 실행 파일을 덮어쓰지 않고 버전별 폴더에 빌드합니다. `tools/build_exe.py`가 외부 도구의 ICU DLL 충돌을 방지합니다. v1.0.0 Windows 빌드 재현용 의존성 목록은 `requirements-lock.txt`에 있습니다.
+결과: `dist/v1.5.0/ClipBridge.exe`. 기존 실행 파일을 덮어쓰지 않고 버전별 폴더에 빌드합니다. `tools/build_exe.py`가 외부 도구의 ICU DLL 충돌을 방지합니다. v1.0.0 Windows 빌드 재현용 의존성 목록은 `requirements-lock.txt`에 있습니다.
+
+UAC 설치형은 위 의존성과 .NET SDK를 준비한 깨끗한 Windows x64 체크아웃에서 `python tools/build_windows_uac.py`로 만듭니다. WiX 4.0.6을 빌드 전용 도구 폴더에 설치하고 `dist/v1.5.0/ClipBridge-UAC-setup-x64.msi`를 생성합니다. 일반 GUI와 SYSTEM 서비스는 각각 onedir로 묶습니다. 서비스·입력 core는 Program Files에만 설치합니다. [서비스 구조](WINDOWS_UAC_DESIGN.md)
 
 ## macOS
 
@@ -30,7 +32,9 @@ python -m pytest -q
 
 Windows 전용 검사는 Mac에서, Mac 네이티브 검사는 Windows에서 건너뜁니다. Mac 어댑터의 핵심 처리/경합 검사는 가짜 pasteboard로 양쪽에서 실행합니다. 실제 NSPasteboard와 키체인은 macOS CI에서 검사합니다. 테스트는 지원 가능한 기존 클립보드를 복구하고, Windows 자동 시작 레지스트리의 원래 값을 복구합니다.
 
-Windows 자동 시작은 현재 사용자의 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 등록이며 서비스 설치가 아닙니다. 사용자 로그인 후 `--background`로 시작합니다. 앱 프로세스의 충돌 복구·로그인 전/잠금 화면/UAC 입력은 구현하지 않았습니다. 입력 자식 프로세스 종료와 네트워크 단절은 앱이 실행 중일 때 재시도합니다. 등록 검사와 실제 재부팅 후 검증은 구분합니다.
+일반 버전의 Windows 자동 시작은 현재 사용자의 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 등록입니다. 사용자 로그인 후 `--background`로 시작하며 트레이 앱 자체의 충돌 복구는 제공하지 않습니다. UAC 설치형은 별도의 `ClipBridgeInput` 자동 시작 서비스를 추가해 입력 자식과 서비스 장애를 복구합니다. 클립보드는 두 버전 모두 사용자 로그인 후 트레이 앱에서 처리합니다. 등록·서비스 재시작 검사와 실제 PC 재부팅 후 검증은 구분합니다.
+
+`tools/windows_uac_smoke.py`는 GitHub Windows CI에서만 실행하도록 제한합니다. MSI 설치·TLS 네이티브 입력·SYSTEM/UIAccess·서비스 및 자식 복구·제거를 검사합니다. `tools/windows_secure_desktop_probe.py`는 SYSTEM/Administrators만 접근 가능한 별도 데스크톱에 테스트 창을 만들고 실제 네이티브 키와 마우스 수신을 검사한 뒤 원래 데스크톱으로 돌아옵니다. 실제 UAC 승인 창을 열거나 자동 승인하지 않습니다. 사용 중인 PC에서 전체 네이티브 검사를 실행하면 클립보드·입력에 영향을 줄 수 있으므로 전체 검사는 격리된 CI에서 수행하세요.
 
 `tests/test_multidevice.py`는 허브 + 참여 컴퓨터 3대의 실제 로컬 TLS 연결로 중계·파일 승인·동시 복사·재접속·인증키 분리와 해제를 검사합니다. 기기별 클립보드 적용은 메모리 어댑터를 사용하고, OS 클립보드 검사는 별도 네이티브 테스트에서 수행합니다. 서로 다른 실물 기기나 16대 최대 부하를 검증한 결과로 해석하지 마세요.
 

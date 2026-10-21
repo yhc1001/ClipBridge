@@ -1,41 +1,30 @@
-# Windows UAC 변형 개발 기록 (진행 중)
+# Windows UAC 설치형 구조
 
-일반 버전 v1.4.0은 검증·공개 완료: https://github.com/yhc1001/ClipBridge/releases/tag/v1.4.0
+일반 EXE와 MSI의 GUI·클립보드는 같은 코드입니다. MSI는 입력만 처리하는 `ClipBridgeInput` LocalSystem 서비스를 추가합니다. Deskflow GUI·daemon·설치 프로그램은 사용하지 않습니다. 고정 버전의 내장 core만 실행합니다. 실제 검사 범위는 [v1.5 검증 기록](VALIDATION-v1.5.md)에 따릅니다.
 
-사용자 요청으로 일반 포터블과 UAC 지원 설치형을 따로 제공한다. UAC 변형은 아직 빌드·통합 검증하지 않았으므로 완료/동작 확인으로 안내하면 안 된다. 사용자 PC의 현재 ClipBridge/Deskflow는 작업 중이라 변경·종료하지 않는다. 관리자 설치 승인은 완성된 MSI를 준비한 뒤 사용자에게 받는다. UAC/보안 데스크톱 정책을 낮추지 않는다.
+## 권한 경계
 
-## 선택한 구조
+- 서비스·core·DLL은 MSI의 비공개 설치 디렉터리 속성으로 지정한 Program Files 하위에 설치합니다. 일반 사용자가 실행 파일 경로·DLL 경로·명령행을 요청에 지정할 수 없습니다.
+- 설치 시 개별 사용자 SID를 HKLM에 등록합니다. 서비스 로컬 pipe는 SYSTEM·Administrators·이 사용자만 접근하며 remote pipe client를 거부합니다. 사용자에게 pipe 인스턴스를 추가할 수 있는 권한은 주지 않습니다. 실제 client PID의 토큰 SID도 대조합니다.
+- GUI는 SCM에 등록된 서비스 PID·LocalSystem 계정·설치 이미지 경로를 확인한 뒤 pipe로 인증서를 전달합니다. IPC는 길이가 제한된 JSON bytes입니다. pickle은 사용하지 않습니다.
+- 허용 요청은 `status`, `configure`, `stop`, `suspend`뿐입니다. 입력 설정 필드는 whitelist이며 화면의 enter/exit 명령도 금지합니다. 인증서는 키 일치·크기·알고리즘을 확인한 뒤 canonical PEM으로 다시 직렬화합니다.
+- 서비스 인증서는 SYSTEM DPAPI로 보호하며 설정과 런타임 프로필은 SYSTEM/Administrators만 접근 가능한 ProgramData 폴더에 둡니다. 런타임 PEM은 child 종료 시 삭제합니다. 저장 상태는 설치 소유자 SID에 묶으며 소유자가 달라지면 폐기합니다. 클립보드·받은 파일은 서비스에서 처리하거나 기록하지 않습니다.
 
-- 트레이·클립보드는 일반 사용자. 입력만 `ClipBridgeInput` LocalSystem Windows 서비스에서 실행.
-- 기존 Deskflow daemon은 사용하지 않는다. 원본 daemon은 공용 IPC/레지스트리/프로세스 이름을 사용하며 다른 core를 일괄 종료하는 코드도 있어 기존 프로그램과 격리하기 어렵다. 고정 버전의 core만 별도 서비스가 실행한다.
-- SCM 자동 시작·실패 시 재시작 + 고정 core 자식 감시. 현재 SYSTEM 토큰을 복제해 활성 콘솔 세션에 배치하고 TokenUIAccess를 켠다. winlogon/사용자 토큰을 빌려 실행하지 않는다.
-- 프로그램/DLL은 MSI로 Program Files의 보호된 경로에 설치. core의 기존 Windows 보안 데스크톱 감지·전환을 사용한다. 사용자 쓰기 가능 실행 파일/명령/경로를 서비스에 전달하지 않는다.
-- `prepare_profile(..., copy_windows_runtime=False)`는 설치된 core를 직접 사용한다. 서비스 빌드에서 `_internal/input-engine/settings/Deskflow.conf` 정적 포터블 표시 파일을 추가하고 bundle.json 해시를 갱신해야 한다. 일반 포터블의 기본 실행 방식은 유지한다.
-- 서비스 프로필/DPAPI(SYSTEM) 보호 인증서는 ProgramData/ClipBridgeInputService, SYSTEM/Administrators만 읽고 쓰는 ACL. 파일·클립보드 기록은 서비스에 저장하지 않는다. 임시 native PEM은 core 종료 시 지운다.
-- 로컬 named pipe만 사용. 원격 pipe 클라이언트 거부, 최초 인스턴스 보호, ACL은 SYSTEM/Administrators/설치 소유자 SID. 요청의 실제 클라이언트 SID를 확인한다.
-- 사용자 GUI는 SCM의 서비스 PID/LocalSystem 계정과 실제 이미지 경로를 대조해 pipe 가로채기를 막은 뒤 인증서를 전달한다. 평문 인증서는 로컬 pipe/메모리와 보호된 native 임시 프로필에만 있다.
-- 요청은 길이 제한된 JSON bytes. pickle 금지. `status/configure/stop/suspend`만 허용. 설정 필드는 whitelist, 원격 명령·외부 경로·native enter/exit 명령 금지. 수신 PEM은 cert/key 일치를 검사하고 canonical PEM으로 다시 직렬화한다.
-- 자식은 suspended로 만들고 kill-on-job-close Job Object에 넣은 뒤 실행한다. 서비스가 죽어도 고권한 core가 고아로 남지 않는다. 소유한 자식만 종료한다.
+## 입력 프로세스
 
-## 남은 구현
+자신의 SYSTEM 토큰을 복제해 활성 콘솔 세션과 UIAccess를 설정하고 `CreateProcessAsUser`로 보호된 core를 시작합니다. winlogon이나 사용자 토큰을 빌리지 않습니다. core는 suspended로 생성하고 kill-on-job-close Job Object에 넣은 뒤 실행합니다. 서비스가 강제 종료돼도 고권한 core가 고아로 남지 않습니다.
 
-1. 서비스/일반 GUI 연결: `InputManager`가 소유자 SID에 맞는 설치 서비스를 발견하면 로컬 IPC로 구성·상태·정지를 요청. 포터블은 기존 방식. 기존 Deskflow core가 살아 있으면 충돌을 알리고 자동 종료하지 않는다.
-2. 종료 의미: 명시적 앱 종료는 `stop`으로 저장된 서비스 enabled=false. OS 종료는 Qt commitDataRequest 또는 SM_SHUTTINGDOWN 확인 후 `suspend`로 이번 프로세스만 정지해 부팅 자동 연결 설정 보존. 설정 변경 stop 후 start/disabled를 명확히 전달.
-3. SCM failure restart 설정. native 자식 종료 상태 오류 표시·5초 재시도. 세션 변경 재생성.
-4. 서버 모드만 별도 Windows 방화벽 규칙을 COM으로 등록: 고정 Program Files core 경로+입력 포트+사설 프로필, LAN/Tailscale 범위. 등록 상대는 TLS pin으로 제한. 클라이언트는 수신 규칙 불필요. 원래 Deskflow 규칙/서비스는 변경하지 않는다.
-5. 서비스 전용 PyInstaller onedir와 MSI: WiX 4.0.6을 CI의 .NET SDK로 사용. MSI ServiceInstall/ServiceControl, LocalSystem auto start, HKLM Software/ClipBridge/InputService OwnerSid=[UserSID], Executable=[설치된 서비스 exe]. 서비스 exe와 의존 DLL은 Program Files. 시작 메뉴/바탕화면 바로가기. 설치/제거 시 서비스 시작·정지·삭제. 앱 최초 설치 실행 시 사용자 로그인 자동 시작 기본값 합리적으로 처리.
-6. UAC 버전은 1.5.0으로 버전/빌드 경로를 정리. 일반 1.4.0 공개 파일은 그대로 유지한다. `github_ci.py`는 현재 ref=main/폴더 v1.4.0 고정이므로 새 서비스 브랜치/워크플로 지원을 추가해야 한다. 현재 브랜치 codex/windows-uac-service, 일반 배포 main/tag v1.4.0은 7eb90c8.
-7. Windows CI에서 깨끗한 VM에 MSI 실제 설치·서비스 계정/권한·소유자 SID·자식 세션/UIAccess·재시작·IPC 권한/명령 거부·일시 정지/종료·제거를 검사. 사용자 PC에서는 설치/후크 테스트 금지.
-8. 가능한 범위에서 별도 보안 ACL 가상 Windows desktop에 실제 TLS native key/mouse를 전달하는 CI 검사 추가. 실제 사용자 UAC 승인 창을 자동으로 누르지 않는다. 실제 UAC/재부팅 검사가 못 되면 명시적으로 미검증으로 기록하고 수동 확인은 사용자가 한다.
+원본 core의 보안 데스크톱 감지·전환 기능을 사용합니다. 원본 core의 로컬 IPC는 연결한 server PID가 자신이 실행한 core인지 확인한 뒤 SYSTEM/Administrators 전용 ACL로 좁힙니다. 이 연결로 실제 연결 상태를 받고 종료 시 키·커서 정리를 요청합니다. 여러 프로세스에 영향을 주는 원본의 전역 종료 이벤트는 사용하지 않습니다. 기존 다른 입력 core가 실행 중이면 시작을 보류하며 기존 프로그램을 종료하지 않습니다.
 
-## 현재 코드와 검사
+서비스용 core는 고정 Program Files에서 직접 실행하고 전용 portable marker와 private 설정 경로를 사용합니다. 일반 버전은 기존 사용자 전용 임시 런타임을 사용합니다. 두 경로 모두 엔진 TLS와 인증서 고정을 켜며 엔진 자체 클립보드·enter/exit 명령·업데이트 확인은 끕니다. 별도 Qt 실행 라이브러리는 GUI의 Qt DLL 경로와 분리합니다.
 
-서비스 기초: `service_policy.py`, `windows_service_client.py`, `windows_input_service.py`, `service_bootstrap.py`.
+## 수명과 네트워크
 
-`tests/test_service_policy.py` 3개 통과: 명령/경로/필드 거부, 키-인증서 일치·크기·정규화, peer/화면 옵션 제한. 실제 서비스는 아직 설치/실행하지 않았다.
+- SCM은 Windows 시작 시 서비스를 실행하고 비정상 종료 시 5초 후 복구합니다. 서비스는 입력 자식 종료·세션 변경을 감지하고 5초 간격으로 재시도합니다. 기본값으로 입력 공유가 켜지지는 않으며 최초 페어링·설정이 필요합니다.
+- GUI의 명시적 종료/공유 끄기는 `stop`으로 저장 상태를 비활성화합니다. Windows 종료 시에는 `suspend`로 이번 child를 정지하고 다음 서비스 시작의 자동 연결 설정은 보존합니다. GUI·클립보드 자동 시작은 기존 사용자 Run 등록입니다.
+- 입력 서버에서만 자기 규칙 하나를 관리합니다. 설치된 고정 core 경로, 지정한 TCP 포트, Private 프로필, LocalSubnet·Tailscale IPv4/IPv6 범위로 제한합니다. 클라이언트 모드에는 인바운드 규칙이 없습니다. 중지·제거 시 규칙을 지웁니다. 인증은 별도의 TLS pin으로 제한합니다.
+- UAC·보안 데스크톱 정책은 변경하지 않습니다. 외부 명령 실행이나 범용 관리자 작업 API는 제공하지 않습니다. RDP·여러 로그인 세션·실제 보안 화면에 대한 범위는 검증 기록을 확인하세요.
 
-Windows pywin32에는 `QueryFullProcessImageName` 래퍼가 없어 ctypes `QueryFullProcessImageNameW`를 사용했다. 현재 프로세스에 대한 SID/경로 조회 확인 완료. `WTSGetActiveConsoleSessionId`, named pipe client/server PID API는 존재한다.
+서비스 구현: `clipbridge/windows_input_service.py`, 클라이언트: `windows_service_client.py`, 정책: `service_policy.py`, MSI 빌드: `tools/build_windows_uac.py`.
 
-코드 검토할 점: named pipe overlapped 대기/중단 처리, 명확한 child exit 진단, fail recovery, 보안 desktop 전환 실증, 사용자 계정의 SCM QUERY 접근. 코드가 아직 프로토타입 상태이므로 검증 전 릴리스하지 않는다.
-
-Microsoft 참고: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasusera , https://learn.microsoft.com/en-us/windows/win32/services/interactive-services
+Microsoft API 문서: [CreateProcessAsUser](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasusera), [대화형 서비스](https://learn.microsoft.com/en-us/windows/win32/services/interactive-services), [서비스 장애 복구](https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-changeserviceconfig2a).

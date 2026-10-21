@@ -4,16 +4,18 @@
 
 ## 다운로드
 
-[최신 실행 파일](https://github.com/yhc1001/ClipBridge/releases/latest)에서 내 컴퓨터에 맞는 ZIP을 받으세요.
+[다운로드](https://github.com/yhc1001/ClipBridge/releases/latest)에서 Windows 버전을 선택하세요. **UAC 창에서도 마우스·키보드를 쓰려면 설치형을 사용합니다.**
 
 | 컴퓨터 | 받을 파일 |
 |---|---|
-| Windows | `ClipBridge-portable.zip` |
-| Apple 칩 Mac | `ClipBridge-macOS-arm64.zip` |
-| Intel Mac | `ClipBridge-macOS-intel.zip` |
-| Linux x86_64 (X11) | `ClipBridge-linux-x86_64.tar.gz` |
+| Windows 일반 버전 | `ClipBridge-portable.zip` — 압축 해제 후 실행 |
+| Windows UAC 버전 | `ClipBridge-UAC-setup-x64.msi` — 한 번 설치 후 실행 |
+| Apple 칩 / Intel Mac | [Mac 다운로드](https://github.com/yhc1001/ClipBridge/releases/tag/v1.4.0) |
+| Linux x86_64 (X11) | [Linux 다운로드](https://github.com/yhc1001/ClipBridge/releases/tag/v1.4.0) |
 
-Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac(macOS 14 이상)은 `ClipBridge.app`을 **응용 프로그램**으로 옮겨 실행합니다. Linux는 압축을 풀고 `ClipBridge/ClipBridge`를 실행합니다. Python 설치는 필요 없습니다.
+Windows 일반 버전은 압축을 풀고 `ClipBridge.exe`를 실행합니다. UAC 버전은 MSI를 설치하고 시작 메뉴의 **ClipBridge**를 실행합니다. 기존 Deskflow는 먼저 정지하세요. [UAC 버전 사용법](docs/WINDOWS_UAC.md)
+
+Mac(macOS 14 이상)은 ZIP의 `ClipBridge.app`을 **응용 프로그램**으로 옮겨 실행합니다. Linux는 압축을 풀고 `ClipBridge/ClipBridge`를 실행합니다. Python 설치는 필요 없습니다. Mac·Linux는 기존 v1.4.0 배포본으로 Windows 두 버전과 연결합니다.
 
 ## 처음 한 번만 연결
 
@@ -40,7 +42,7 @@ Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac(macOS 14 �
 
 **고급 설정…**은 별도 창으로 열립니다. 기본 클립보드 **256MiB**, 파일·폴더 한 번에 **16GiB**이며 각각 최대 **512MiB / 1TiB**까지 설정할 수 있습니다. 큰 용량은 보내는 쪽·받는 쪽·허브 모두 같은 값으로 높이세요. 디스크 공간도 필요합니다.
 
-업데이트는 모든 컴퓨터에서 기존 앱을 트레이로 종료한 뒤 **v1.4.0**을 실행하세요. 연결 정보는 유지하고 예전 기본 용량은 한 번 자동으로 올립니다. 새 실행 파일에서 자동 시작 설정도 저장하세요.
+업데이트는 기존 앱을 트레이로 종료한 뒤 새 버전을 실행하세요. 연결 정보는 유지합니다. 새 실행 파일에서 자동 시작 설정도 저장하세요.
 
 ## 잘 안 될 때
 
