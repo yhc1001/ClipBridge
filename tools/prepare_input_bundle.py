@@ -73,8 +73,10 @@ def macos_bundle():
     architecture = "arm64" if platform.machine() == "arm64" else "x86_64"
     image = download(LOCK["macos-" + architecture], "deskflow-" + architecture + ".dmg")
     with tempfile.TemporaryDirectory(prefix="ClipBridge-mount-") as temporary:
-        mount = Path(temporary) / "volume"
-        subprocess.run(["hdiutil", "attach", "-readonly", "-nobrowse", "-quiet", "-mountpoint", str(mount), str(image)], check=True)
+        mount = Path(temporary).resolve() / "volume"
+        mount.mkdir()
+        subprocess.run(["hdiutil", "attach", "-readonly", "-nobrowse", "-mountpoint", str(mount), str(image)],
+            input="Y\n", text=True, timeout=60, check=True)
         try:
             applications = list(mount.glob("*.app"))
             if len(applications) != 1:
