@@ -55,7 +55,7 @@ if __name__ == "__main__":
             component(lambda name: archive.extractfile(name).read(), "ClipBridge/_internal/input-engine/")
             assert archive.getmember("ClipBridge/ClipBridge").mode & 0o111
             assert archive.getmember("ClipBridge/_internal/input-engine/deskflow-core").mode & 0o111
-    else:
+    if arguments.windows_only or (DIST / "ClipBridge-UAC-setup-x64.msi").exists():
         # Read-only MSI database inspection: never installs or executes it.
         from win32com.client.dynamic import Dispatch
         import pythoncom

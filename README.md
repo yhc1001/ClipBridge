@@ -13,7 +13,7 @@
 | Apple 칩 / Intel Mac | `ClipBridge-macOS-arm64.zip` / `ClipBridge-macOS-intel.zip` |
 | Linux x86_64 · X11 | `ClipBridge-linux-x86_64.tar.gz` |
 
-Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.0으로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요.
+Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.0으로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
 
 ## 연결은 세 단계
 

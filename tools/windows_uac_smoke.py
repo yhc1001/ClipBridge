@@ -1,7 +1,8 @@
 """Install and exercise the service ONLY on a disposable GitHub Windows runner."""
 import os
 import sys
-sys.stdout.reconfigure(encoding="utf-8")
+if sys.stdout is not None:
+    sys.stdout.reconfigure(encoding="utf-8")
 if sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true":
     raise SystemExit("This installer/input test is restricted to disposable Windows CI runners")
 
@@ -186,6 +187,12 @@ def restricted_owner_probe(output):
     report = {}
     try:
         assert not ctypes.windll.shell32.IsUserAnAdmin(), "Probe was not filtered"
+        token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+        try:
+            integrity = win32security.GetTokenInformation(token, win32security.TokenIntegrityLevel)
+            assert win32security.ConvertSidToStringSid(integrity[0]) == "S-1-16-8192"
+        finally:
+            token.Close()
         status = service.request({"operation": "status"})
         assert status["ok"]
         for access in (win32con.PROCESS_VM_WRITE, win32con.PROCESS_TERMINATE):
@@ -211,14 +218,18 @@ def check_restricted_owner(directory):
         win32security.AdjustTokenPrivileges(token, False, [(privilege, win32con.SE_PRIVILEGE_ENABLED)])
         admins = win32security.CreateWellKnownSid(win32security.WinBuiltinAdministratorsSid)
         restricted = win32security.CreateRestrictedToken(token, 1, [(admins, 0)], None, None)
+        win32security.SetTokenInformation(restricted, win32security.TokenIntegrityLevel,
+            (win32security.ConvertStringSidToSid("S-1-16-8192"), 0x20))
         output = directory / "restricted-owner.json"
+        output.write_text('{"ok":false,"error":"Probe did not initialize"}', encoding="utf-8")
         command = subprocess.list2cmdline([sys.executable, str(Path(__file__).resolve()), "--owner-probe", str(output)])
         process, thread, _, _ = win32process.CreateProcessAsUser(restricted, sys.executable, command,
             None, None, False, win32con.CREATE_NO_WINDOW, None, str(ROOT), win32process.STARTUPINFO())
         try:
             assert win32event.WaitForSingleObject(process, 15000) == win32event.WAIT_OBJECT_0
             report = json.loads(output.read_text(encoding="utf-8"))
-            assert win32process.GetExitCodeProcess(process) == 0 and report["ok"], report
+            code = win32process.GetExitCodeProcess(process)
+            assert code == 0 and report["ok"], {"exit_code": code, **report}
         finally:
             thread.Close()
             process.Close()
