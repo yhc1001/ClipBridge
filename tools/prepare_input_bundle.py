@@ -105,6 +105,7 @@ def linux_bundle(source):
     qt_core = re.search(r"libQt6Core\.so\.6\s+=>\s+(/[^\s]+)", initial)
     if not qt_core:
         raise RuntimeError("Qt runtime not found")
+    dependency_environment = dict(os.environ, LD_LIBRARY_PATH=str(Path(qt_core[1]).parent))
     plugin_root = Path(qt_core[1]).parent.parent / "plugins"
     for category in ("platforms",):
         source_plugins = plugin_root / category
@@ -118,7 +119,7 @@ def linux_bundle(source):
     pending, seen = [executable, *(DESTINATION / "plugins").rglob("*.so")], set()
     while pending:
         library = pending.pop()
-        listing = subprocess.check_output(["ldd", str(library)], text=True)
+        listing = subprocess.check_output(["ldd", str(library)], text=True, env=dependency_environment)
         if "not found" in listing:
             raise RuntimeError("Unresolved native input dependency: " + listing)
         for full in re.findall(r"=>\s+(/[^\s]+)", listing):
