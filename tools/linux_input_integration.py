@@ -17,7 +17,7 @@ if not sys.platform.startswith("linux"):
     raise SystemExit("This integration test requires Linux Xvfb")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from PySide6.QtCore import QCoreApplication
+from PySide6.QtCore import QCoreApplication, QSettings
 from clipbridge.config import ConfigStore
 from clipbridge.input_engine import defaults, prepare_profile
 from clipbridge.security import fingerprint
@@ -26,7 +26,10 @@ from clipbridge.security import fingerprint
 def wait(predicate, seconds=12):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
-        value = predicate()
+        try:
+            value = predicate()
+        except subprocess.CalledProcessError:
+            value = False
         if value:
             return value
         time.sleep(.05)
@@ -67,6 +70,11 @@ with tempfile.TemporaryDirectory(prefix="ClipBridge-X11-input-") as temporary:
                 screens=[{"name": "Main", "x": 0, "y": 0}, {"name": "Linux", "x": 1, "y": 0}])
             settings["trusted_clients" if index == 0 else "trusted_servers"] = [fingerprint(configs[1-index].cert_pem)]
             program, arguments, environment = prepare_profile(configs[index], settings, directory / ("native-" + name))
+            # Upstream emits server readiness and client connection at DEBUG.
+            # Keep verbose output confined to this disposable test profile.
+            profile = QSettings(arguments[2], QSettings.Format.IniFormat)
+            profile.setValue("log/level", "DEBUG")
+            profile.sync()
             env = {key: environment.value(key) for key in environment.keys()}
             env.update(DISPLAY=displays[index], QT_QPA_PLATFORM="xcb")
             env.pop("XAUTHORITY", None)

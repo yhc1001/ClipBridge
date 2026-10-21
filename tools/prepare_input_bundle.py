@@ -2,7 +2,7 @@
 
 Build-time network access only. Runtime code never downloads executables.
 Windows/macOS use official portable artifacts; Linux builds the same source for
-Ubuntu 24.04 X11 with the documented two-line optional-Wayland patch.
+Ubuntu 24.04 X11 with the documented optional-Wayland build changes.
 """
 import hashlib
 import json
