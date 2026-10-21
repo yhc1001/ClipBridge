@@ -248,7 +248,7 @@ class ClipboardWorker(threading.Thread):
             if self.config.images and not any(k in formats for k in ("PNG", "DIB", "DIBV5")) and cb.IsClipboardFormatAvailable(win32con.CF_BITMAP):
                 formats["DIB"] = bitmap_dib(self.config.clip_limit)
             if self.config.files and self.config.file_policy != "block" and cb.IsClipboardFormatAvailable(win32con.CF_HDROP):
-                raw_data(win32con.CF_HDROP, 1024 * 1024)
+                raw_data(win32con.CF_HDROP, min(self.config.clip_limit, MAX_FILES * 1024 + 20))
                 paths = list(cb.GetClipboardData(win32con.CF_HDROP))
                 if len(paths) > MAX_FILES:
                     self.on_status("파일 목록 개수 제한을 초과했습니다.")

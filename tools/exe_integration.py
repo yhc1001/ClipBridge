@@ -17,6 +17,8 @@ from PIL import Image
 from clipbridge.clipboard import raw_data
 from clipbridge.config import ConfigStore
 from clipbridge.images import image_formats
+from clipbridge.clipboard_win import MARKER
+from clipbridge.model import FORMATS
 from clipbridge.security import fingerprint, protect
 from test_network import Device, wait_for
 from test_windows_clipboard import open_clipboard, put
@@ -38,7 +40,8 @@ open_clipboard()
 try:
     fmt = cb.EnumClipboardFormats(0)
     while fmt:
-        if fmt in (13, 15, 8, 17) or fmt >= 0xC000:
+        registered = fmt >= 0xC000 and cb.GetClipboardFormatName(fmt) in (FORMATS | {MARKER, "CanIncludeInClipboardHistory", "CanUploadToCloudClipboard", "Preferred DropEffect"})
+        if fmt in (13, 15, 8, 17) or registered:
             try:
                 saved[fmt] = raw_data(fmt, 128 * 1024**2)
             except Exception:
@@ -88,6 +91,12 @@ try:
             finally:
                 cb.CloseClipboard()
             print("Packaged EXE PNG/DIB/DIBV5 + HTML/RTF registration: PASS")
+            large = "분할 전송 클립보드 😀\n" * 90000
+            device.send({"text": large.encode()})
+            wait_for(lambda: read_text() == large)
+            put({"text": (large + "return").encode()})
+            assert device.received.get(timeout=8).formats["text"] == (large + "return").encode()
+            print("Packaged EXE multi-megabyte chunked clipboard both directions: PASS")
             file = base / "source.txt"
             file.write_text("실제 파일 내용", encoding="utf-8")
             device.send(paths=[str(file)])

@@ -356,6 +356,8 @@ class Session:
                 self.file_formats_receiving = None
             if self.clipboard_receiving and (not self.ledger.current(self.clipboard_receiving.stamp) or time.monotonic() - self.clipboard_receiving.updated > 120):
                 self.clipboard_receiving = None
+            if self.file_formats_receiving and (not self.ledger.current(self.file_formats_receiving.stamp) or time.monotonic() - self.file_formats_receiving.updated > 120):
+                self.file_formats_receiving = None
 
     def submit(self, snapshot):
         if not self.ledger.current(snapshot.stamp):
@@ -589,6 +591,7 @@ class Session:
                 if not self.ledger.current(self.in_stamp) or not self.config.can_receive():
                     self.receiving.remove()
                     self.receiving = None
+                    self.file_formats_receiving = None
                     return
                 encoded = message.get("data")
                 if not isinstance(encoded, str) or len(encoded) > CHUNK * 4 // 3 + 4:
