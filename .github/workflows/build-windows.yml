@@ -37,6 +37,6 @@ jobs:
         with:
           name: ClipBridge-win-x64
           path: |
-            dist/v1.6.1/ClipBridge.exe
-            dist/v1.6.1/ClipBridge-UAC-setup-x64.msi
+            dist/v1.6.2/ClipBridge.exe
+            dist/v1.6.2/ClipBridge-UAC-setup-x64.msi
           if-no-files-found: error

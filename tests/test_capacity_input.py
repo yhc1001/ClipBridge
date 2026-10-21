@@ -85,7 +85,11 @@ def test_deskflow_configuration_layout_tls_and_command_blocking(qt_app, tmp_path
     assert not native.value("core/enableExitCommand", type=bool)
     assert not native.value("server/enableClipboard", type=bool)
     assert native.value("computer_Main/name") == "Main" and native.value("computer_Linux/name") == "Linux"
-    assert native.value("server/enableSwitchDelay", type=bool) and native.value("server/switchDelay", type=int) == 250
+    assert not native.value("server/enableSwitchDelay", type=bool) and native.value("server/switchDelay", type=int) == 0
+    settings["switch_delay"] = 125
+    prepare_profile(config, settings, tmp_path / "custom-delay")
+    custom = QSettings(str(tmp_path / "custom-delay/settings/Deskflow.conf"), QSettings.Format.IniFormat)
+    assert custom.value("server/enableSwitchDelay", type=bool) and custom.value("server/switchDelay", type=int) == 125
     assert "--settings" in args and "--new-instance" in args
     assert (tmp_path / "runtime" / "settings" / "tls" / "trusted-clients").read_text().strip() == "v2:sha256:" + "a" * 64
     own_code = connection_code(config, settings)

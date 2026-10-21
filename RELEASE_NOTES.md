@@ -1,15 +1,14 @@
-# ClipBridge v1.6.1 — 양방향 복사 안정화
+# ClipBridge v1.6.2 — 화면 경계 즉시 전환
 
-- 같은 텍스트를 다시 복사할 때 전송이 빠지던 문제를 수정했습니다. 연결 실패·일시 중지 후 같은 내용을 다시 복사해도 전송합니다.
-- 같은 파일을 수정한 뒤 다시 복사하면 실제 내용을 새로 전송합니다.
-- 통합 연결에 남아 있던 예전 단방향 설정을 양방향으로 맞춥니다.
-- Main/newserver/Laptop 세 대의 모든 6방향에서 텍스트·HTML·이미지·파일·폴더 전달을 loopback TLS로 검사합니다.
-- PC 승인과 실제 클립보드 연결 표시를 구분하고, 기존 Deskflow 실행 중에는 클립보드 충돌 가능성을 표시합니다.
+화면 경계에서 잠깐 멈추던 이전 기본 대기 **250ms를 제거**했습니다. 화면 가장자리에 도달하면 바로 전환하도록 기본값을 바꿨습니다.
 
-**연결할 PC 모두 v1.6.1로 업데이트하세요.** Windows 설치형은 `ClipBridge-UAC-setup-x64.msi`, 일반 버전은 `ClipBridge-portable.zip`입니다. macOS ARM/Intel과 Linux X11도 제공합니다. 기존 연결과 인증서는 유지합니다.
+- 기존 통합 그룹의 기본 250ms 설정도 업데이트할 때 한 번 해제합니다.
+- 이전 수동 연결과 다른 사용자 지정 지연값, 업데이트 후 직접 바꾼 설정은 유지합니다.
+- 입력 이벤트는 별도 내장 Deskflow 엔진이 직접 TLS로 송수신합니다. 클립보드·파일 작업은 별도 채널에서 처리합니다.
+- 실제 내장 엔진을 사용해 분리된 두 X11 테스트 화면에서 이전 설정과 새 기본값의 전환 시간을 비교합니다.
 
-Deskflow와 ClipBridge가 동시에 클립보드를 바꾸면 덮어써질 수 있습니다. Deskflow를 정지하고 ClipBridge의 마우스 동작을 확인한 뒤 Deskflow를 제거해도 됩니다. 세 대를 쓰려면 노트북과 서버가 각각 같은 Main에 연결되어야 합니다. Main의 클립보드 상대 연결 수는 두 대입니다.
+일반 Windows 버전은 `ClipBridge-portable.zip`, UAC 설치형은 `ClipBridge-UAC-setup-x64.msi`입니다. Mac ARM/Intel과 Linux X11도 제공합니다. 기존 인증과 연결 설정은 유지합니다.
 
-연결이 끊겼던 동안의 클립보드를 자동으로 재생하지 않습니다. 재연결 후 다시 복사하세요. 실물 PC의 앱별 붙여넣기, 실제 UAC 승인 창과 재부팅은 미검증입니다.
+기존 Deskflow는 서비스까지 종료하세요. 클립보드 연결과 마우스 연결은 각각 상태를 확인할 수 있습니다. 실물 PC의 DPI·고주사율·게임/고부하와 실제 UAC 승인 창에서의 성능 측정은 미검증입니다.
 
-[쉬운 사용법](https://github.com/yhc1001/ClipBridge#readme) · [검증 결과](https://github.com/yhc1001/ClipBridge/blob/main/docs/VALIDATION-v1.6.1.md)
+[사용법](https://github.com/yhc1001/ClipBridge#readme) · [마우스 안내](https://github.com/yhc1001/ClipBridge/blob/main/docs/MOUSE_KEYBOARD.md) · [검증 결과](https://github.com/yhc1001/ClipBridge/blob/main/docs/VALIDATION-v1.6.2.md)

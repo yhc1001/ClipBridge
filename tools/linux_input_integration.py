@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import select
 import socket
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -75,6 +76,16 @@ def move_pointer(display, x, y):
         x11.XCloseDisplay(connection)
 
 
+def stop_process(process):
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=3)
+
+
 application = QCoreApplication([])
 processes, logs = [], []
 with tempfile.TemporaryDirectory(prefix="ClipBridge-X11-input-") as temporary:
@@ -82,43 +93,73 @@ with tempfile.TemporaryDirectory(prefix="ClipBridge-X11-input-") as temporary:
     try:
         displays = [start_display(processes), start_display(processes)]
         configs = [ConfigStore(directory / name).load() for name in ("a", "b")]
-        with socket.socket() as endpoint:
-            endpoint.bind(("127.0.0.1", 0))
-            port = endpoint.getsockname()[1]
-        for index, (name, mode) in enumerate((("Main", "server"), ("Linux", "client"))):
-            settings = defaults()
-            settings.update(name=name, mode=mode, server_ip="127.0.0.1", port=port, switch_delay=0,
-                screens=[{"name": "Main", "x": 0, "y": 0}, {"name": "Linux", "x": 1, "y": 0}])
-            settings["trusted_clients" if index == 0 else "trusted_servers"] = [fingerprint(configs[1-index].cert_pem)]
-            program, arguments, environment = prepare_profile(configs[index], settings, directory / ("native-" + name))
-            # Upstream emits server readiness and client connection at DEBUG.
-            # Keep verbose output confined to this disposable test profile.
-            profile = QSettings(arguments[2], QSettings.Format.IniFormat)
-            profile.setValue("log/level", "DEBUG")
-            profile.sync()
-            env = {key: environment.value(key) for key in environment.keys()}
-            env.update(DISPLAY=displays[index], QT_QPA_PLATFORM="xcb")
-            env.pop("XAUTHORITY", None)
-            log = directory / (name + ".txt")
-            logs.append(log)
-            with log.open("wb") as output:
-                processes.append(subprocess.Popen([program, *arguments], env=env, stdout=output, stderr=subprocess.STDOUT))
-            if index == 0:
-                wait(lambda: "started server" in log.read_text(errors="replace").lower() or "waiting for clients" in log.read_text(errors="replace").lower())
-        wait(lambda: "connected to server" in logs[1].read_text(errors="replace").lower())
+        measurements = {"legacy_250ms": [], "default_instant": []}
+        for label, delay in (("legacy_250ms", 250), ("default_instant", None)):
+            for sample in range(3):
+                active, pair_logs = [], []
+                move_pointer(displays[0], 300, 240)
+                move_pointer(displays[1], 320, 240)
+                with socket.socket() as endpoint:
+                    endpoint.bind(("127.0.0.1", 0))
+                    port = endpoint.getsockname()[1]
+                try:
+                    for index, (name, mode) in enumerate((("Main", "server"), ("Linux", "client"))):
+                        settings = defaults()
+                        settings.update(name=name, mode=mode, server_ip="127.0.0.1", port=port,
+                            screens=[{"name": "Main", "x": 0, "y": 0}, {"name": "Linux", "x": 1, "y": 0}])
+                        if delay is not None:
+                            settings["switch_delay"] = delay
+                        else:
+                            assert settings["switch_delay"] == 0, "Production default must switch immediately"
+                        settings["trusted_clients" if index == 0 else "trusted_servers"] = [fingerprint(configs[1-index].cert_pem)]
+                        profile_dir = directory / f"{label}-{sample}-{name}"
+                        program, arguments, environment = prepare_profile(configs[index], settings, profile_dir)
+                        # Only synthetic private desktops emit DEBUG output.
+                        profile = QSettings(arguments[2], QSettings.Format.IniFormat)
+                        profile.setValue("log/level", "DEBUG")
+                        profile.sync()
+                        env = {key: environment.value(key) for key in environment.keys()}
+                        env.update(DISPLAY=displays[index], QT_QPA_PLATFORM="xcb")
+                        env.pop("XAUTHORITY", None)
+                        log = directory / f"{label}-{sample}-{name}.txt"
+                        logs.append(log)
+                        pair_logs.append(log)
+                        with log.open("wb") as output:
+                            process = subprocess.Popen([program, *arguments], env=env, stdout=output, stderr=subprocess.STDOUT)
+                        processes.append(process)
+                        active.append(process)
+                        if index == 0:
+                            wait(lambda: "started server" in log.read_text(errors="replace").lower() or "waiting for clients" in log.read_text(errors="replace").lower())
+                    wait(lambda: "connected to server" in pair_logs[1].read_text(errors="replace").lower())
+                    # Use an actual client window so keyboard delivery is also
+                    # verified after the final default-configured transition.
+                    verify_keys = label == "default_instant" and sample == 2
+                    if verify_keys:
+                        events = directory / "key-events.txt"
+                        with events.open("wb") as output:
+                            process = subprocess.Popen(["stdbuf", "-oL", "xev", "-display", displays[1], "-event", "keyboard"], stdout=output, stderr=subprocess.STDOUT)
+                        processes.append(process)
+                        active.append(process)
+                        window = wait(lambda: command(displays[1], "search", "--name", "Event Tester"))
+                        command(displays[1], "windowfocus", window.splitlines()[0])
+                    move_pointer(displays[0], 300, 240)
+                    time.sleep(.1)
+                    before = command(displays[1], "getmouselocation", "--shell")
+                    started = time.monotonic()
+                    move_pointer(displays[0], 639, 240)
+                    wait(lambda: command(displays[1], "getmouselocation", "--shell") != before)
+                    measurements[label].append(round((time.monotonic() - started) * 1000, 2))
+                    if verify_keys:
+                        command(displays[0], "key", "--clearmodifiers", "a")
+                        wait(lambda: "keysym 0x61, a" in events.read_text(errors="replace"))
+                finally:
+                    for process in reversed(active):
+                        stop_process(process)
+        old, new = (statistics.median(measurements[key]) for key in ("legacy_250ms", "default_instant"))
+        print("SCREEN_SWITCH_BENCHMARK " + json.dumps({**measurements, "legacy_median_ms": old, "instant_median_ms": new,
+            "scope": "loopback TLS / two private Xvfb displays; includes polling and process scheduling"}), flush=True)
+        assert old >= 180 and new < old - 100, "Removing the configured edge wait must reduce actual transition latency"
         print("Bundled server/client TLS authentication on separate X11 desktops: PASS", flush=True)
-        events = directory / "key-events.txt"
-        with events.open("wb") as output:
-            processes.append(subprocess.Popen(["stdbuf", "-oL", "xev", "-display", displays[1], "-event", "keyboard"], stdout=output, stderr=subprocess.STDOUT))
-        window = wait(lambda: command(displays[1], "search", "--name", "Event Tester"))
-        command(displays[1], "windowfocus", window.splitlines()[0])
-        move_pointer(displays[0], 300, 240)
-        time.sleep(.1)
-        before = command(displays[1], "getmouselocation", "--shell")
-        move_pointer(displays[0], 639, 240)
-        wait(lambda: command(displays[1], "getmouselocation", "--shell") != before)
-        command(displays[0], "key", "--clearmodifiers", "a")
-        wait(lambda: "keysym 0x61, a" in events.read_text(errors="replace"))
         print("Bundled mouse screen transition and keyboard transport into client X11 window: PASS", flush=True)
     except Exception:
         for log in logs:
@@ -126,10 +167,4 @@ with tempfile.TemporaryDirectory(prefix="ClipBridge-X11-input-") as temporary:
         raise
     finally:
         for process in reversed(processes):
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=3)
+            stop_process(process)

@@ -55,7 +55,7 @@ def defaults():
     name = re.sub(r"[^A-Za-z0-9_.-]", "-", socket.gethostname())[:63].strip(".-") or "Computer"
     return {"enabled": False, "engine": find_engine(), "mode": "server", "name": name, "server_ip": "", "port": 24801,
             "screens": [{"name": name, "x": 1, "y": 1}], "trusted_servers": [], "trusted_clients": [],
-            "certificate": "", "protected_identity": "", "switch_delay": 250, "scroll_scale": 1.0, "invert_scroll": False, "relative_mouse": False}
+            "certificate": "", "protected_identity": "", "switch_delay": 0, "scroll_scale": 1.0, "invert_scroll": False, "relative_mouse": False}
 
 
 def validate(settings):

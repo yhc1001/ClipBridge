@@ -13,7 +13,7 @@
 | Apple 칩 / Intel Mac | `ClipBridge-macOS-arm64.zip` / `ClipBridge-macOS-intel.zip` |
 | Linux x86_64 · X11 | `ClipBridge-linux-x86_64.tar.gz` |
 
-Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.1으로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
+Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.2로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
 
 ## 연결은 세 단계
 
@@ -24,6 +24,8 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 클립보드·파일이 바로 양방향으로 공유되고, 두 PC에 같은 화면 배치가 나타납니다. 다른 PC를 추가할 때도 같은 방법입니다. Main 1대에 다른 PC 최대 16대까지 연결합니다.
 
 **마우스는 ‘마우스·키보드 공유’ ON/OFF만 바꾸세요.** 꺼도 복사·붙여넣기는 계속 됩니다. 화면 카드를 드래그하면 양쪽 배치가 함께 바뀌며, 화면 가장자리로 마우스를 옮겨 다른 PC로 넘어갑니다.
+
+**화면 경계에서는 기다리지 않고 바로 전환합니다.** v1.6.2는 이전 기본 대기 250ms를 통합 연결에서 한 번 해제합니다.
 
 <img src="artifacts/setup-v1.6.png" alt="ClipBridge 통합 연결 화면" width="460">
 
@@ -44,6 +46,6 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-자동 검사: Windows 111개 · Mac 각 100개 · Linux 102개 통과. 반복 복사·세 PC의 모든 방향 전달을 추가 검사했습니다. 실물 PC에서 확인이 남은 항목은 아래 검증 결과에 구분했습니다.
+화면 전환과 OS별 배포 검증 결과, 실물 PC에서 확인이 남은 항목은 아래 검증 결과에 구분합니다.
 
-[검증 결과](docs/VALIDATION-v1.6.1.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)
+[검증 결과](docs/VALIDATION-v1.6.2.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)

@@ -70,12 +70,14 @@ def devices(tmp_path):
 
 def test_ip_approval_automatically_registers_pins_roles_screens_on_both_pcs(devices):
     host, client = devices("Main"), devices("newserver")
+    host.data["switch_delay"] = client.data["switch_delay"] = 250
     client.join(host)
     wait(lambda: client.data.get("easy_controller") == host.config.device_id and client.shown == 1)
     assert len(host.approvals) == 1 and host.shown == client.shown == 1
     assert host.approvals[0]["code"] in " ".join(str(info) for _, info in client.events)
     assert host.data["mode"] == "server" and client.data["mode"] == "client"
     assert host.data["enabled"] and client.data["enabled"]
+    assert host.data["switch_delay"] == client.data["switch_delay"] == 0
     assert host.data["screens"] == client.data["screens"]
     assert client.data["trusted_servers"] == [certificate_pin(identity(host.config)[0])]
     assert host.data["trusted_clients"] == [certificate_pin(identity(client.config)[0])]

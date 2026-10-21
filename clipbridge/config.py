@@ -52,6 +52,7 @@ class Config:
     limits_version: int = 1
     input_settings: dict = field(default_factory=dict)
     mouse_enabled: bool = True
+    input_defaults_version: int = 1
 
     @property
     def secret(self):
@@ -123,6 +124,13 @@ class ConfigStore:
             if len(config.secret) != 32:
                 raise ValueError("DPAPI secret error")
             changed = config.migrate_trust()
+            if "input_defaults_version" not in value:
+                # Remove the old implicit quarter-second barrier in unified
+                # groups once. Preserve explicit/manual and later choices.
+                native = config.input_settings
+                if (native.get("easy_controller") or native.get("easy_peers")) and native.get("switch_delay") == 250:
+                    native["switch_delay"] = 0
+                changed = True
             # Unified IP/approval groups always share in both directions. The
             # legacy one-way selector is no longer exposed in that workflow.
             if (config.input_settings.get("easy_controller") or config.input_settings.get("easy_peers")) and config.direction != "both":

@@ -205,6 +205,8 @@ class InputSetup(threading.Thread):
                     raise ValueError("이 PC는 다른 Main에 연결되어 있습니다. 연결을 끊은 뒤 요청하세요.")
                 peers = value.get("easy_peers", {})
                 remembered = peers.get(device)
+                if not peers and not remembered and value["switch_delay"] == 250:
+                    value["switch_delay"] = 0
                 if any(peer != device and record["pin"] == pin for peer, record in peers.items()):
                     raise ValueError("같은 인증서가 다른 PC에 이미 등록되어 있습니다.")
                 if remembered and remembered["pin"] != pin:
@@ -301,6 +303,8 @@ class InputSetup(threading.Thread):
 
     async def _client_state(self, message, address, port, pin, assigned=None):
         value = settings(self.config)
+        if assigned is not None and not value.get("easy_controller") and value["switch_delay"] == 250:
+            value["switch_delay"] = 0
         if message.get("server") != value.get("easy_controller", message.get("server")):
             raise ValueError("다른 Main의 화면 배치입니다.")
         if type(message.get("revision")) is not int or not 0 <= message["revision"] < 2**63:
