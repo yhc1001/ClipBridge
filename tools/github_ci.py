@@ -71,7 +71,7 @@ def main():
         data = download(token, PREFIX + f"/actions/runs/{args.run}/logs")
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             for name in archive.namelist():
-                if name.endswith(".txt") and any(label in name.lower() for label in ("tests", "packaged")):
+                if name.endswith(".txt") and any(label in name.lower() for label in ("tests", "packaged", "prepare built-in", "mouse and keyboard")):
                     text = archive.read(name).decode("utf-8", errors="replace")
                     print(name + "\n" + "\n".join(text.splitlines()[-40:]))
     else:

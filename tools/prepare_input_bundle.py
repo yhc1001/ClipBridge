@@ -91,6 +91,7 @@ def linux_bundle(source):
     cmake = source / "src/lib/platform/CMakeLists.txt"
     original = cmake.read_text(encoding="utf-8")
     patched = original.replace("pkg_check_modules(LIBEI REQUIRED QUIET", "pkg_check_modules(LIBEI QUIET").replace("pkg_check_modules(LIBPORTAL REQUIRED QUIET", "pkg_check_modules(LIBPORTAL QUIET")
+    patched = patched.replace("target_compile_definitions(platform PUBLIC WINAPI_LIBEI WINAPI_LIBPORTAL)", "# ClipBridge X11-only build: Wayland compile definitions disabled")
     cmake.write_text(patched, encoding="utf-8")
     build = ROOT / "build/input-linux"
     subprocess.run(["cmake", "-S", str(source), "-B", str(build), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
@@ -105,10 +106,13 @@ def linux_bundle(source):
     if not qt_core:
         raise RuntimeError("Qt runtime not found")
     plugin_root = Path(qt_core[1]).parent.parent / "plugins"
-    for category in ("platforms", "tls", "networkinformation"):
+    for category in ("platforms",):
         source_plugins = plugin_root / category
         if source_plugins.is_dir():
-            shutil.copytree(source_plugins, DESTINATION / "plugins" / category)
+            target_plugins = DESTINATION / "plugins" / category
+            target_plugins.mkdir(parents=True)
+            for name in ("libqxcb.so", "libqoffscreen.so", "libqminimal.so"):
+                shutil.copy2(source_plugins / name, target_plugins / name)
     # Bundle native runtime dependencies except the standard OS ABI libraries.
     base = re.compile(r"^(lib(c|m|dl|pthread|rt|resolv|util|stdc\+\+|gcc_s)\.so|ld-linux)")
     pending, seen = [executable, *(DESTINATION / "plugins").rglob("*.so")], set()
