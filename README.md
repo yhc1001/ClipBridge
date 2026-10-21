@@ -13,7 +13,7 @@
 | Apple 칩 / Intel Mac | `ClipBridge-macOS-arm64.zip` / `ClipBridge-macOS-intel.zip` |
 | Linux x86_64 · X11 | `ClipBridge-linux-x86_64.tar.gz` |
 
-Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.0으로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
+Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.1으로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
 
 ## 연결은 세 단계
 
@@ -35,12 +35,15 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 ## 연결이 안 되면
 
+- **가끔 복사만 안 되면:** 기존 Deskflow의 자동 실행 서비스까지 정지하고 ClipBridge만 사용하세요. 두 프로그램이 클립보드를 함께 바꾸면 내용이 덮어써질 수 있습니다. Deskflow는 ClipBridge의 마우스가 동작하는지 확인한 뒤 제거해도 됩니다.
+- **세 대를 쓸 때:** 노트북과 서버가 각각 같은 Main IP로 연결 요청을 보내야 합니다. Main의 화면 카드가 세 개이고 **클립보드·파일 · 연결됨 · 2대**인지 확인하세요. 마우스가 움직이거나 ‘PC 승인 완료’가 표시되는 것만으로 클립보드 연결을 판단하지 마세요.
+- **끊겼다가 연결되면:** 연결 후 다시 복사하세요. v1.6.1은 같은 텍스트·같은 경로의 파일을 재복사해도 새 전송을 시작합니다. 통합 연결에 남아 있던 예전 단방향 설정도 양방향으로 맞춥니다.
 - 양쪽을 같은 버전으로 업데이트하고 LAN 또는 Tailscale에 연결하세요. 일반 Windows 버전은 방화벽의 **사설 네트워크** 허용이 필요할 수 있습니다. 설치형은 전용 사설 규칙을 관리합니다.
 - Mac은 손쉬운 사용·입력 모니터링 권한과 최초 실행 허용이 필요할 수 있습니다. Linux는 X11을 지원합니다. Wayland는 지원하지 않습니다.
 - 설치형 사용법·검증 범위는 [UAC 안내](docs/WINDOWS_UAC.md), 자세한 내용은 [통합 연결 안내](docs/CONNECTION.md)에 있습니다.
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-자동 검사: Windows 102개 · Mac 각 94개 · Linux 96개 통과. 실물 PC·UAC 승인 창·재부팅 등 확인이 남은 항목은 아래 검증 결과에 구분했습니다.
+v1.6.1은 반복 복사·세 PC의 모든 방향 전달을 추가 검사합니다. OS별 빌드·검증 결과와 실물 PC에서 확인이 남은 항목은 아래 검증 결과에 구분합니다.
 
-[검증 결과](docs/VALIDATION-v1.6.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)
+[검증 결과](docs/VALIDATION-v1.6.1.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)

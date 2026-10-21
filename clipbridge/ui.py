@@ -149,7 +149,7 @@ class Window(QMainWindow):
         title = QLabel("ClipBridge")
         title.setStyleSheet("font-size: 25px; font-weight: 600; color: #1769c2;")
         layout.addWidget(title)
-        self.connection = QLabel("연결 요청 대기 중")
+        self.connection = QLabel("클립보드·파일 · 연결 요청 대기 중")
         layout.addWidget(self.connection)
         self.status = QLabel("IP 입력 → 상대 PC에서 승인하면 클립보드와 화면이 함께 연결됩니다.")
         self.status.setWordWrap(True)
@@ -257,7 +257,7 @@ class Window(QMainWindow):
         self.config.input_settings = copy.deepcopy(settings)
         try:
             for key, value in (clipboard or {}).items():
-                if key not in {"role", "peer_ip", "peer_id", "peer_pin", "port", "protected_secret", "trusted_peers"}:
+                if key not in {"role", "peer_ip", "peer_id", "peer_pin", "port", "protected_secret", "trusted_peers", "direction"}:
                     raise ValueError("Invalid connection configuration")
                 setattr(self.config, key, copy.deepcopy(value))
             self.store.save(self.config)
@@ -273,6 +273,7 @@ class Window(QMainWindow):
         self.role.setCurrentIndex(0 if self.config.role == "main" else 1)
         self.peer.setText(self.config.peer_ip)
         self.port.setValue(self.config.port)
+        self.direction.setCurrentIndex(self.direction.findData(self.config.direction))
         self.refresh_devices()
         self.update_pair_state()
         if changed:
@@ -497,7 +498,7 @@ class Window(QMainWindow):
 
     def update_connection(self):
         label = "일시 중지" if self.config.paused else f"연결됨 · {self.connected}대" if self.connected else "연결 끊김"
-        self.connection.setText(label)
+        self.connection.setText("클립보드·파일 · " + label)
         self.tray.setIcon(app_icon(self.connected, self.config.paused))
         self.tray.setToolTip("ClipBridge · " + label)
 

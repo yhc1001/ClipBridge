@@ -135,6 +135,7 @@ class ClipboardWorker(QObject):
         self.prepared.connect(self.capture_done, Qt.ConnectionType.QueuedConnection)
         self.seen_sequence = self.board.count()
         self.own_marker, self.last_hash = "", ""
+        self.last_hash_sequence = None
         self.pending = None
         self.has_received_files = False
         self.stopped = False
@@ -215,9 +216,12 @@ class ClipboardWorker(QObject):
         if not self.ledger.current(snapshot.stamp) or self.board.count() != snapshot.sequence:
             return
         digest = snapshot.digest()
-        if digest == self.last_hash:
+        # A new copy action must retry even if the previous content/path was
+        # identical. Only the same change-count and hash identify a duplicate.
+        if digest == self.last_hash and snapshot.sequence == self.last_hash_sequence:
             return
         self.last_hash = digest
+        self.last_hash_sequence = snapshot.sequence
         self.on_local(snapshot)
 
     def apply_pending(self):
@@ -238,6 +242,7 @@ class ClipboardWorker(QObject):
                 self.board.write(snapshot, self.own_marker)
                 self.seen_sequence = self.board.count()
                 self.last_hash = snapshot.digest()
+                self.last_hash_sequence = self.seen_sequence
                 self.has_received_files = bool(snapshot.paths)
             self.pending = None
             self.on_applied(snapshot)

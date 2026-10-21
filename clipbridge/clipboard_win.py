@@ -92,6 +92,7 @@ class ClipboardWorker(threading.Thread):
         self.marker_id = 0
         self.own_marker = b""
         self.last_hash = ""
+        self.last_hash_sequence = None
         self.seen_sequence = 0
         self.capture_due = 0.0
         self.capture_attempts = 0
@@ -259,9 +260,12 @@ class ClipboardWorker(threading.Thread):
         formats = normalize(formats, self.config.clip_limit)
         snapshot = Snapshot(formats, paths, stamp, seq)
         digest = snapshot.digest()
-        if digest == self.last_hash:
+        # Content equality alone is not a duplicate event. A fresh Ctrl+C is
+        # also a retry after disconnect/pause, and files can change at one path.
+        if digest == self.last_hash and seq == self.last_hash_sequence:
             return
         self.last_hash = digest
+        self.last_hash_sequence = seq
         if self.config.can_send() and (formats or paths):
             self.on_local(snapshot)
 
@@ -311,6 +315,7 @@ class ClipboardWorker(threading.Thread):
                         cb.SetClipboardData(cb.RegisterClipboardFormat(name), struct.pack("<I", 0))
                     self.seen_sequence = sequence()
                     self.last_hash = snapshot.digest()
+                    self.last_hash_sequence = self.seen_sequence
             finally:
                 cb.CloseClipboard()
             self.pending = None

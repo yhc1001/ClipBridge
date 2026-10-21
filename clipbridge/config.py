@@ -123,6 +123,11 @@ class ConfigStore:
             if len(config.secret) != 32:
                 raise ValueError("DPAPI secret error")
             changed = config.migrate_trust()
+            # Unified IP/approval groups always share in both directions. The
+            # legacy one-way selector is no longer exposed in that workflow.
+            if (config.input_settings.get("easy_controller") or config.input_settings.get("easy_peers")) and config.direction != "both":
+                config.direction = "both"
+                changed = True
             if "mouse_enabled" not in value and config.input_settings:
                 config.mouse_enabled = bool(config.input_settings.get("enabled", False))
                 changed = True

@@ -294,7 +294,7 @@ class InputManager(QObject):
             if status.get("connected"):
                 label = "UAC 서비스 · 마우스·키보드 연결됨"
             if status.get("error"):
-                label = ("기존 마우스 공유 프로그램을 먼저 정지하세요."
+                label = ("기존 Deskflow 실행 중 · 클립보드가 서로 덮어써질 수 있습니다. ClipBridge만 사용하려면 Deskflow를 종료하세요."
                          if status["error"].startswith("OtherInputCoreRunning")
                          else "UAC 서비스 · 자동 재시도 (" + status["error"] + ")")
             self.notify("input_status", label)
@@ -333,7 +333,7 @@ class InputManager(QObject):
         try:
             import psutil
             if any(process.info["name"] and process.info["name"].lower() in ("deskflow-core.exe", "deskflow-core", "deskflow-server.exe", "deskflow-client.exe") for process in psutil.process_iter(["name"])):
-                raise ValueError("기존 Deskflow가 실행 중입니다. Deskflow에서 정지한 뒤 마우스 공유를 켜세요.")
+                raise ValueError("기존 Deskflow 실행 중 · 클립보드가 서로 덮어써질 수 있습니다. ClipBridge만 사용하려면 Deskflow를 종료하세요.")
             required = "trusted_servers" if settings["mode"] == "client" else "trusted_clients"
             if not settings[required]:
                 raise ValueError("상대 마우스 연결 코드를 먼저 등록하세요.")

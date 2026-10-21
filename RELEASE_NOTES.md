@@ -1,19 +1,15 @@
-# ClipBridge v1.6.0 — IP 한 번, 승인 한 번
+# ClipBridge v1.6.1 — 양방향 복사 안정화
 
-클립보드와 마우스의 연결을 통합했습니다. **다른 PC에서 Main IP 입력 → Main에서 연결 허용**을 누르면 끝입니다.
+- 같은 텍스트를 다시 복사할 때 전송이 빠지던 문제를 수정했습니다. 연결 실패·일시 중지 후 같은 내용을 다시 복사해도 전송합니다.
+- 같은 파일을 수정한 뒤 다시 복사하면 실제 내용을 새로 전송합니다.
+- 통합 연결에 남아 있던 예전 단방향 설정을 양방향으로 맞춥니다.
+- Main/newserver/Laptop 세 대의 모든 6방향에서 텍스트·HTML·이미지·파일·폴더 전달을 loopback TLS로 검사합니다.
+- PC 승인과 실제 클립보드 연결 표시를 구분하고, 기존 Deskflow 실행 중에는 클립보드 충돌 가능성을 표시합니다.
 
-- 클립보드·파일·화면 배치를 한 번에 연결합니다. 별도 인증 코드와 역할 선택을 없앴습니다.
-- 두 PC에 같은 화면 배치가 자동 표시됩니다. 어느 쪽에서 카드를 옮겨도 함께 반영합니다.
-- 마우스는 기본 화면의 **마우스·키보드 공유 ON/OFF**만 바꿉니다. 꺼도 클립보드·파일은 계속 공유합니다.
-- 포트·좌표·인증서·여러 역할 설정을 기본 화면에서 제거하고, 용량·자동 시작 같은 옵션은 고급 창으로 옮겼습니다.
-- 설치형의 일반 권한 앱에서 서비스 상태 조회가 거부되는 문제를 수정했습니다. 설치한 사용자에게 경로 확인에 필요한 최소 조회 권한만 부여합니다.
+**연결할 PC 모두 v1.6.1로 업데이트하세요.** Windows 설치형은 `ClipBridge-UAC-setup-x64.msi`, 일반 버전은 `ClipBridge-portable.zip`입니다. macOS ARM/Intel과 Linux X11도 제공합니다. 기존 연결과 인증서는 유지합니다.
 
-**모든 PC를 v1.6.0으로 업데이트하세요.** Windows 일반 버전은 `ClipBridge-portable.zip`, UAC 설치형은 `ClipBridge-UAC-setup-x64.msi`입니다. 설치형을 쓰던 PC는 MSI도 업데이트해야 합니다. Mac·Linux 배포본도 제공합니다. Deskflow·Python 별도 설치는 필요 없습니다.
+Deskflow와 ClipBridge가 동시에 클립보드를 바꾸면 덮어써질 수 있습니다. Deskflow를 정지하고 ClipBridge의 마우스 동작을 확인한 뒤 Deskflow를 제거해도 됩니다. 세 대를 쓰려면 노트북과 서버가 각각 같은 Main에 연결되어야 합니다. Main의 클립보드 상대 연결 수는 두 대입니다.
 
-기존 설정은 유지하며, 새 통합 연결을 승인하면 Main 중심으로 연결을 자동 전환합니다. Main이 꺼져 있는 동안 그 그룹의 공유도 멈춥니다. 새 설정은 로그인 자동 시작이 기본이고, 기존에 꺼 둔 선택은 유지합니다.
+연결이 끊겼던 동안의 클립보드를 자동으로 재생하지 않습니다. 재연결 후 다시 복사하세요. 실물 PC의 앱별 붙여넣기, 실제 UAC 승인 창과 재부팅은 미검증입니다.
 
-첫 승인 때 양쪽의 확인 번호를 비교하세요. 이후에는 저장한 인증서와 개인키 소유를 확인해 자동 재연결합니다. 프로그램은 TLS 암호화 통신을 사용하고 외부 서버·텔레메트리를 사용하지 않습니다.
-
-검사는 실제 loopback TLS와 분리된 테스트 화면·CI에서 수행합니다. 실물 PC의 UAC 승인 창·재부팅·서로 다른 OS 앱별 붙여넣기는 미검증입니다. Windows 설치 파일은 개발자 코드 서명이 없고, Mac 앱은 Developer ID 공증이 없습니다.
-
-[쉬운 사용법·새 화면](https://github.com/yhc1001/ClipBridge#readme) · [통합 연결 안내](https://github.com/yhc1001/ClipBridge/blob/main/docs/CONNECTION.md) · [검증 결과](https://github.com/yhc1001/ClipBridge/blob/main/docs/VALIDATION-v1.6.md)
+[쉬운 사용법](https://github.com/yhc1001/ClipBridge#readme) · [검증 결과](https://github.com/yhc1001/ClipBridge/blob/main/docs/VALIDATION-v1.6.1.md)

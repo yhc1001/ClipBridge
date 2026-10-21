@@ -232,7 +232,7 @@ class InputSetup(threading.Thread):
                 clipboard_peer = clipboard_peers.get(device) if self.config.role == "main" else None
                 shared = unprotect(clipboard_peer["secret"]) if clipboard_peer else secrets.token_bytes(32)
                 clipboard_peers[device] = {"name": name, "secret": protect(shared)}
-                await self._apply(value, show=not remembered, clipboard={"role": "main", "peer_id": "", "peer_pin": "", "peer_ip": "", "trusted_peers": clipboard_peers})
+                await self._apply(value, show=not remembered, clipboard={"role": "main", "peer_id": "", "peer_pin": "", "peer_ip": "", "trusted_peers": clipboard_peers, "direction": "both"})
                 if device in self.clients:
                     self.clients[device].close()
                 self.clients[device] = writer
@@ -242,7 +242,7 @@ class InputSetup(threading.Thread):
                 await self._broadcast()
             self.pending -= 1
             counted = False
-            self.notify("input_setup_status", "클립보드·파일 연결 완료")
+            self.notify("input_setup_status", "PC 승인 완료 · 화면 배치 공유 중")
             while True:
                 message = await read_frame(reader, 16384, timeout=35)
                 if message.get("type") == "ping" and set(message) == {"type"}:
@@ -325,7 +325,7 @@ class InputSetup(threading.Thread):
             if len(secret) != 32 or not isinstance(grant["pin"], str) or not re.fullmatch(r"[0-9a-f]{64}", grant["pin"]) or type(grant["port"]) is not int or not 1024 <= grant["port"] <= 65535:
                 raise ValueError("Invalid clipboard credentials")
             clipboard = {"role": "server", "peer_id": grant["device"], "peer_pin": grant["pin"], "peer_ip": address,
-                         "port": grant["port"], "protected_secret": protect(secret), "trusted_peers": {}}
+                         "port": grant["port"], "protected_secret": protect(secret), "trusted_peers": {}, "direction": "both"}
         await self._apply(value, show=assigned is not None, clipboard=clipboard)
 
     async def _connect(self, address, port):
@@ -359,7 +359,7 @@ class InputSetup(threading.Thread):
                     raise ValueError("Wrong server")
                 await self._client_state(response, address, port, pin, computer_name(response["name"]))
                 self.client_writer, delay = writer, 1
-                self.notify("input_setup_status", "PC 연결 완료 · 클립보드와 화면 배치를 함께 사용합니다.")
+                self.notify("input_setup_status", "PC 승인 완료 · 화면 배치 공유 중")
                 async def keepalive():
                     while True:
                         await asyncio.sleep(10)

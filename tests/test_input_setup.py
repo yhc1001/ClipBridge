@@ -193,6 +193,75 @@ def test_one_approval_enables_real_clipboard_and_file_tls_without_second_code_or
         b.store.close()
 
 
+def test_three_unified_pcs_relay_every_direction_even_with_legacy_one_way_settings(devices, tmp_path):
+    from test_network import Device as ClipboardDevice
+    from clipbridge.images import image_formats
+    from PIL import Image
+    from pathlib import Path
+    setups = [devices(name) for name in ("Main", "newserver", "Laptop")]
+    host = setups[0]
+    with socket.socket() as free:
+        free.bind(("127.0.0.1", 0))
+        host.config.port = free.getsockname()[1]
+    host.config.bind_ip = "127.0.0.1"
+    for device in setups:
+        device.config.direction = "main_to_server"
+        device.config.mouse_enabled = False
+    for participant in setups[1:]:
+        participant.join(host)
+        wait(lambda: participant.engine.client_writer)
+    wait(lambda: all(len(device.data["screens"]) == 3 for device in setups))
+    assert all(device.config.direction == "both" for device in setups)
+    clips = [ClipboardDevice(device.config, tmp_path / f"clip-{i}", approve=False) for i, device in enumerate(setups)]
+    try:
+        for device in clips:
+            device.start()
+        wait(lambda: all(device.connected for device in clips) and clips[0].connected == 2)
+        for index, sender in enumerate(clips):
+            formats = {"text": f"three PC source {index}".encode(), "HTML Format": b"<b>formatted</b>"}
+            sender.send(formats)
+            for receiver in clips:
+                if receiver is not sender:
+                    assert receiver.received.get(timeout=8).formats == formats
+            formats = image_formats(Image.new("RGB", (18, 12), (index * 80, 40, 90)))
+            sender.send(formats)
+            for receiver in clips:
+                if receiver is not sender:
+                    assert receiver.received.get(timeout=8).formats == formats
+            folder = tmp_path / f"folder-{index}"
+            folder.mkdir()
+            (folder / "한글.txt").write_bytes(f"folder payload {index}".encode())
+            source = tmp_path / f"file-{index}.bin"
+            source.write_bytes(bytes([index]) * 600000)
+            sender.send(paths=[str(folder), str(source)])
+            for receiver in clips:
+                if receiver is not sender:
+                    received = receiver.received.get(timeout=10)
+                    assert (Path(received.paths[0]) / "한글.txt").read_bytes() == (folder / "한글.txt").read_bytes()
+                    assert Path(received.paths[1]).read_bytes() == source.read_bytes()
+            assert sender.received.empty()
+        assert len(host.approvals) == 2
+    finally:
+        for device in clips:
+            device.stop()
+        for device in clips:
+            device.store.close()
+
+
+@pytest.mark.parametrize("unified", [False, True])
+def test_loading_unified_groups_restores_bidirectional_but_preserves_legacy_choice(tmp_path, unified):
+    import uuid
+    store = ConfigStore(tmp_path)
+    config = store.load()
+    config.direction = "main_to_server"
+    if unified:
+        config.input_settings = {"easy_controller": str(uuid.uuid4())}
+    store.save(config)
+    loaded = store.load()
+    assert loaded.direction == ("both" if unified else "main_to_server")
+    assert store.load().direction == loaded.direction
+
+
 def test_canceled_approval_cannot_enroll_after_client_exits(devices):
     pending = []
     host = devices("Main", approve=lambda info, future: pending.append(future))
