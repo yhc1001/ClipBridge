@@ -11,6 +11,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
 from clipbridge.config import ConfigStore
+from clipbridge import __version__
 
 
 def check(directory, mode):
@@ -27,7 +28,7 @@ def check(directory, mode):
     diagnostic = Path(directory) / "startup-diagnostic.txt"
     environment = dict(os.environ, LOCALAPPDATA=directory, CLIPBRIDGE_STARTUP_DIAGNOSTIC=str(diagnostic), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4()))
     start = time.perf_counter()
-    executable = root / "dist" / "v1.4.0" / "ClipBridge.exe"
+    executable = root / "dist" / ("v" + __version__) / "ClipBridge.exe"
     result = subprocess.run([str(executable), "--smoke-test"], env=environment, timeout=40)
     elapsed = time.perf_counter() - start
     if result.returncode:

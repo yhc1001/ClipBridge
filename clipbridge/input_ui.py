@@ -1,4 +1,5 @@
 """ClipBridge input setup in its own scrollable dialog."""
+import sys
 
 from PySide6.QtCore import Qt, QSignalBlocker, QTimer
 from PySide6.QtGui import QBrush, QColor, QPen
@@ -61,7 +62,11 @@ class InputDialog(QDialog):
         self.invert = QCheckBox("스크롤 방향 반대로")
         self.relative = QCheckBox("상대 좌표 마우스 이동")
         form.addRow(self.enabled)
-        form.addRow("마우스·키보드 엔진", QLabel("내장 · 별도 설치 필요 없음"))
+        edition = "내장 · 별도 설치 필요 없음"
+        if sys.platform == "win32":
+            from .windows_service_client import installation
+            edition = "UAC 지원 · Windows 서비스" if installation() else "일반 포터블 · UAC 입력은 설치형에서 지원"
+        form.addRow("마우스·키보드 엔진", QLabel(edition))
         form.addRow("이 컴퓨터 역할", self.mode)
         form.addRow("이 컴퓨터 이름", self.name)
         form.addRow("마우스 서버 IP", self.address)

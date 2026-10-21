@@ -12,9 +12,11 @@ os.environ["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), sys.base
 
 from PyInstaller.__main__ import run
 from prepare_input_bundle import prepare
+sys.path.insert(0, str(root))
+from clipbridge import __version__
 input_component = prepare()
 
-run(["--noconfirm", "--clean", "--onefile", "--windowed", "--name", "ClipBridge", "--distpath", "dist/v1.4.0",
+run(["--noconfirm", "--clean", "--onefile", "--windowed", "--name", "ClipBridge", "--distpath", "dist/v" + __version__,
      "--add-data", str(input_component) + ":input-engine",
      "--icon", "assets/clipbridge.ico", "--version-file", "assets/version_info.txt",
      "--exclude-module", "PySide6.QtWebEngineCore", "--exclude-module", "PySide6.QtWebEngineWidgets",

@@ -33,6 +33,8 @@ def main():
         if config.autostart:
             set_autostart(True)
         window = Window(store, config)
+        if sys.platform == "win32":
+            application.commitDataRequest.connect(lambda manager: setattr(window.input_manager, "system_shutdown", True))
         application.aboutToQuit.connect(window.quit)
         if "--background" not in sys.argv or (config.role == "server" and not config.peer_ip):
             window.show()

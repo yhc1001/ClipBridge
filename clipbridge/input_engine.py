@@ -174,7 +174,7 @@ def private_directory(path):
         path.chmod(0o700)
 
 
-def prepare_profile(config, settings, directory):
+def prepare_profile(config, settings, directory, *, copy_windows_runtime=True):
     validate(settings)
     engine = Path(find_engine() or (settings.get("engine", "") if not getattr(sys, "frozen", False) else ""))
     if not engine.is_file() or engine.name.lower() not in ("deskflow-core", "deskflow-core.exe"):
@@ -232,15 +232,19 @@ def prepare_profile(config, settings, directory):
     if sys.platform == "win32":
         # Deskflow's Windows core uses a global trust directory unless it is in
         # portable mode. A local executable copy isolates all profile/TLS writes.
-        program = str(directory / "deskflow-core.exe")
-        shutil.copyfile(engine, program)
+        if copy_windows_runtime:
+            program = str(directory / "deskflow-core.exe")
+            shutil.copyfile(engine, program)
+        elif not (engine.parent / "settings" / "Deskflow.conf").is_file():
+            raise ValueError("Installed input runtime lacks its portable profile marker")
         # The executable's directory takes precedence over System32. Ship the
         # matching CRT/Qt there as well so an older system VC++ runtime cannot
         # override the bundled runtime on a clean Windows machine.
-        for library in engine.parent.glob("*.dll"):
-            shutil.copyfile(library, directory / library.name)
+        if copy_windows_runtime:
+            for library in engine.parent.glob("*.dll"):
+                shutil.copyfile(library, directory / library.name)
         system = Path(os.environ["SystemRoot"])
-        environment.insert("PATH", os.pathsep.join([str(directory), str(system / "System32"), str(system)]))
+        environment.insert("PATH", os.pathsep.join([str(directory if copy_windows_runtime else engine.parent), str(system / "System32"), str(system)]))
         environment.insert("QT_PLUGIN_PATH", str(engine.parent / "plugins"))
     return program, [settings["mode"], "--settings", str(path), "--new-instance"], environment
 
@@ -270,12 +274,31 @@ class InputManager(QObject):
         super().__init__(parent)
         self.config, self.directory, self.notify = config, directory, notify
         self.process, self.session = None, None
+        self.service_running = False
+        self.system_shutdown = False
         self.retry = QTimer(self)
         self.retry.setInterval(5000)
         self.retry.timeout.connect(self.start)
 
     def start(self):
         settings = {**defaults(), **self.config.input_settings}
+        if sys.platform == "win32":
+            from . import windows_service_client as service
+            if service.installation():
+                try:
+                    if settings["enabled"]:
+                        service.configure(self.config, settings)
+                        self.service_running = True
+                        self.notify("input_status", "UAC 서비스 · 마우스·키보드 실행 중 · 연결 자동 복구")
+                    else:
+                        service.request({"operation": "stop"})
+                        self.service_running = False
+                    self.retry.stop()
+                except Exception as error:
+                    self.notify("input_status", "UAC 서비스 연결 확인 필요 (" + type(error).__name__ + ")")
+                    if settings["enabled"]:
+                        self.retry.start()
+                return
         if not settings["enabled"] or self.process is not None:
             return
         try:
@@ -339,6 +362,15 @@ class InputManager(QObject):
 
     def stop(self):
         self.retry.stop()
+        if self.service_running:
+            from . import windows_service_client as service
+            try:
+                import win32api
+                operation = "suspend" if self.system_shutdown or win32api.GetSystemMetrics(0x2000) else "stop"
+                service.request({"operation": operation})
+            except Exception:
+                self.notify("input_status", "UAC 서비스 정지 확인 필요")
+            self.service_running = False
         if self.process:
             process, self.process = self.process, None
             process.finished.disconnect(self.finished)

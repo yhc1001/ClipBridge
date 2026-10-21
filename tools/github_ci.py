@@ -38,11 +38,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("dispatch", "status", "logs", "download", "cancel"))
     parser.add_argument("--run", type=int)
+    parser.add_argument("--ref", default="main")
     parser.add_argument("--workflow", choices=("macos", "linux", "windows"), default="macos")
     args = parser.parse_args()
     token = github_token()
     if args.action == "dispatch":
-        github_request(token, PREFIX + f"/actions/workflows/build-{args.workflow}.yml/dispatches", "POST", {"ref": "main"})
+        github_request(token, PREFIX + f"/actions/workflows/build-{args.workflow}.yml/dispatches", "POST", {"ref": args.ref})
         print("Native " + args.workflow + " workflow dispatched")
         return
     if not args.run:
@@ -71,20 +72,22 @@ def main():
         data = download(token, PREFIX + f"/actions/runs/{args.run}/logs")
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             for name in archive.namelist():
-                if name.endswith(".txt") and any(label in name.lower() for label in ("tests", "packaged", "prepare built-in", "mouse and keyboard")):
+                if name.endswith(".txt") and any(label in name.lower() for label in ("tests", "packaged", "prepare built-in", "mouse and keyboard", "build uac", "installed uac")):
                     text = archive.read(name).decode("utf-8", errors="replace")
                     print(name + "\n" + "\n".join(text.splitlines()[-40:]))
     else:
         if run["conclusion"] != "success":
             raise RuntimeError("Only completed successful builds can be downloaded")
         artifacts = github_request(token, PREFIX + f"/actions/runs/{args.run}/artifacts")
-        root = Path(__file__).resolve().parents[1] / "dist" / "v1.4.0"
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from clipbridge import __version__
+        root = Path(__file__).resolve().parents[1] / "dist" / ("v" + __version__)
         root.mkdir(parents=True, exist_ok=True)
         for artifact in artifacts["artifacts"]:
             data = download(token, PREFIX + f"/actions/artifacts/{artifact['id']}/zip")
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 for name in archive.namelist():
-                    if name in ("ClipBridge.exe", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz"):
+                    if name in ("ClipBridge.exe", "ClipBridge-UAC-setup-x64.msi", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz"):
                         (root / name).write_bytes(archive.read(name))
                         print("Downloaded " + name)
 

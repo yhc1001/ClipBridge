@@ -1,4 +1,4 @@
-name: Windows standalone app
+name: Windows general and UAC editions
 on:
   workflow_dispatch:
 permissions:
@@ -6,7 +6,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-2022
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
@@ -29,8 +29,14 @@ jobs:
         run: python tools/exe_smoke.py
       - name: Test packaged built-in input
         run: python tools/bundled_input_smoke.py
+      - name: Build UAC service installer
+        run: python tools/build_windows_uac.py
+      - name: Test installed UAC service
+        run: python tools/windows_uac_smoke.py
       - uses: actions/upload-artifact@v4
         with:
           name: ClipBridge-win-x64
-          path: dist/v1.4.0/ClipBridge.exe
+          path: |
+            dist/v1.5.0/ClipBridge.exe
+            dist/v1.5.0/ClipBridge-UAC-setup-x64.msi
           if-no-files-found: error
