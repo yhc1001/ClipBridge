@@ -91,7 +91,7 @@ class NetworkEngine(threading.Thread):
             context = await asyncio.to_thread(server_context, self.config.cert_pem, self.config.protected_key)
             server = await asyncio.start_server(self._accept, self.config.bind_ip, self.config.port, ssl=context,
                                                 ssl_handshake_timeout=8, ssl_shutdown_timeout=2, backlog=16)
-            self.notify("status", "허브 연결 대기 중 · 새 컴퓨터마다 연결 코드를 복사하세요")
+            self.notify("status", "새 PC 연결 대기 중 · 상대 PC에서 이 PC의 IP를 입력하세요")
             async with server:
                 await self.stop_event.wait()
         else:

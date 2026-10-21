@@ -21,6 +21,8 @@ import win32security
 import win32service
 import win32ts
 import win32evtlog
+import win32process
+import win32event
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -177,6 +179,56 @@ def diagnostics():
             win32evtlog.CloseEventLog(handle)
 
 
+def restricted_owner_probe(output):
+    """Same enrolled SID with Admin group disabled, no UI or input actions."""
+    import ctypes
+    import pywintypes
+    report = {}
+    try:
+        assert not ctypes.windll.shell32.IsUserAnAdmin(), "Probe was not filtered"
+        status = service.request({"operation": "status"})
+        assert status["ok"]
+        for access in (win32con.PROCESS_VM_WRITE, win32con.PROCESS_TERMINATE):
+            try:
+                process = win32api.OpenProcess(access, False, scm_status()["ProcessId"])
+            except pywintypes.error as error:
+                assert error.winerror == 5
+            else:
+                process.Close()
+                raise AssertionError("Unnecessary SYSTEM process rights granted")
+        report = {"ok": True, "administrator": False}
+    except Exception as error:
+        report = {"ok": False, "error": type(error).__name__, "code": getattr(error, "winerror", None)}
+    Path(output).write_text(json.dumps(report), encoding="utf-8")
+    return 0 if report.get("ok") else 1
+
+
+def check_restricted_owner(directory):
+    token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_ALL_ACCESS)
+    restricted = None
+    try:
+        privilege = win32security.LookupPrivilegeValue(None, win32security.SE_INCREASE_QUOTA_NAME)
+        win32security.AdjustTokenPrivileges(token, False, [(privilege, win32con.SE_PRIVILEGE_ENABLED)])
+        admins = win32security.CreateWellKnownSid(win32security.WinBuiltinAdministratorsSid)
+        restricted = win32security.CreateRestrictedToken(token, 1, [(admins, 0)], None, None)
+        output = directory / "restricted-owner.json"
+        command = subprocess.list2cmdline([sys.executable, str(Path(__file__).resolve()), "--owner-probe", str(output)])
+        process, thread, _, _ = win32process.CreateProcessAsUser(restricted, sys.executable, command,
+            None, None, False, win32con.CREATE_NO_WINDOW, None, str(ROOT), win32process.STARTUPINFO())
+        try:
+            assert win32event.WaitForSingleObject(process, 15000) == win32event.WAIT_OBJECT_0
+            report = json.loads(output.read_text(encoding="utf-8"))
+            assert win32process.GetExitCodeProcess(process) == 0 and report["ok"], report
+        finally:
+            thread.Close()
+            process.Close()
+        print("UAC-filtered owner: authenticated service query without process injection/termination rights: PASS", flush=True)
+    finally:
+        if restricted:
+            restricted.Close()
+        token.Close()
+
+
 def check():
     installer = ROOT / "dist" / ("v" + __version__) / "ClipBridge-UAC-setup-x64.msi"
     with tempfile.TemporaryDirectory(prefix="ClipBridge-service-CI-") as temporary:
@@ -191,6 +243,13 @@ def check():
             wait(lambda: service.installation())
             wait(lambda: service.request({"operation": "status"}))
             print("MSI installation, enrolled owner, authenticated local SYSTEM service: PASS", flush=True)
+            check_restricted_owner(directory)
+            from win32com.client.dynamic import Dispatch
+            from clipbridge.windows_input_firewall import SETUP_RULE
+            setup_rule = Dispatch("HNetCfg.FwPolicy2").Rules.Item(SETUP_RULE)
+            assert setup_rule.Profiles == 2 and set(setup_rule.LocalPorts.split(",")) == {"24802", "45832"}
+            assert Path(setup_rule.ApplicationName).name == "ClipBridge.exe"
+            print("Unified approval/clipboard listener firewall: fixed GUI, Private LAN/Tailscale ports: PASS", flush=True)
             config = ConfigStore(directory / "client").load()
             server = ConfigStore(directory / "server").load()
             peer = NativeTestPeer(directory, server, config)
@@ -279,4 +338,6 @@ def check():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--owner-probe":
+        raise SystemExit(restricted_owner_probe(sys.argv[2]))
     check()

@@ -1,60 +1,44 @@
 # ClipBridge
 
-**Main에서 복사하고, newserver·Mac·Linux에서 바로 붙여넣으세요.** 글자·이미지·서식·파일을 연결된 컴퓨터끼리 자동으로 공유합니다.
+**IP 입력 → 상대 PC에서 승인 → 연결 완료.** 클립보드·파일·마우스를 한 번에 연결합니다. 인증 코드나 서버/클라이언트 설정은 필요 없습니다.
 
 ## 다운로드
 
-[다운로드](https://github.com/yhc1001/ClipBridge/releases/latest)에서 Windows 버전을 선택하세요. **UAC 창에서도 마우스·키보드를 쓰려면 설치형을 사용합니다.**
+[최신 버전 받기](https://github.com/yhc1001/ClipBridge/releases/latest)
 
-| 컴퓨터 | 받을 파일 |
+| 내 컴퓨터 | 받을 파일 |
 |---|---|
-| Windows 일반 버전 | `ClipBridge-portable.zip` — 압축 해제 후 실행 |
-| Windows UAC 버전 | `ClipBridge-UAC-setup-x64.msi` — 한 번 설치 후 실행 |
-| Apple 칩 / Intel Mac | [Mac 다운로드](https://github.com/yhc1001/ClipBridge/releases/tag/v1.4.0) |
-| Linux x86_64 (X11) | [Linux 다운로드](https://github.com/yhc1001/ClipBridge/releases/tag/v1.4.0) |
+| Windows · 설치 없이 실행 | `ClipBridge-portable.zip` |
+| Windows · UAC 화면에서도 입력 | `ClipBridge-UAC-setup-x64.msi` |
+| Apple 칩 / Intel Mac | `ClipBridge-macOS-arm64.zip` / `ClipBridge-macOS-intel.zip` |
+| Linux x86_64 · X11 | `ClipBridge-linux-x86_64.tar.gz` |
 
-Windows 일반 버전은 압축을 풀고 `ClipBridge.exe`를 실행합니다. UAC 버전은 MSI를 설치하고 시작 메뉴의 **ClipBridge**를 실행합니다. 기존 Deskflow는 먼저 정지하세요. [UAC 버전 사용법](docs/WINDOWS_UAC.md)
+Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.0으로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요.
 
-Mac(macOS 14 이상)은 ZIP의 `ClipBridge.app`을 **응용 프로그램**으로 옮겨 실행합니다. Linux는 압축을 풀고 `ClipBridge/ClipBridge`를 실행합니다. Python 설치는 필요 없습니다. Mac·Linux는 기존 v1.4.0 배포본으로 Windows 두 버전과 연결합니다.
+## 연결은 세 단계
 
-## 처음 한 번만 연결
+1. **Main:** ClipBridge를 켜 두세요. 화면에 **이 PC 주소**가 표시됩니다.
+2. **newserver 또는 다른 PC:** Main의 IP를 입력하고 **연결 요청**을 누릅니다.
+3. **Main:** 같은 확인 번호가 표시된 요청에서 **연결 허용**을 누르면 끝입니다.
 
-1. **newserver:** 역할을 **허브**로 선택하고 **저장 및 연결**. 허브에서는 IP를 입력하지 않아도 됩니다.
-2. **newserver:** **내 IP 주소 확인**으로 주소를 확인한 뒤 **연결 코드 복사**.
-3. **Main 또는 Mac:** **연결 코드 붙여넣기** → **허브 IP 주소**에 위 주소 입력 → **저장 및 연결**.
-4. **newserver:** 새 컴퓨터의 연결 요청을 승인하면 끝입니다.
+클립보드·파일이 바로 양방향으로 공유되고, 두 PC에 같은 화면 배치가 나타납니다. 다른 PC를 추가할 때도 같은 방법입니다. Main 1대에 다른 PC 최대 16대까지 연결합니다.
 
-**다른 컴퓨터도 추가하려면 2~4번을 반복하세요.** 연결 코드는 한 대를 승인할 때마다 바뀝니다. 허브 1대에 참여 컴퓨터를 최대 16대까지 등록할 수 있습니다. 모두 같은 LAN 또는 Tailscale에 있어야 합니다.
+**마우스는 ‘마우스·키보드 공유’ ON/OFF만 바꾸세요.** 꺼도 복사·붙여넣기는 계속 됩니다. 화면 카드를 드래그하면 양쪽 배치가 함께 바뀌며, 화면 가장자리로 마우스를 옮겨 다른 PC로 넘어갑니다.
 
-## 평소에는 복사만 하세요
+<img src="artifacts/setup-v1.6.png" alt="ClipBridge 통합 연결 화면" width="460">
 
-어느 컴퓨터에서 복사하든 나머지에 자동으로 전달됩니다. Windows는 **Ctrl+V**, Mac은 **⌘V**로 붙여넣으세요. **파일도 확인 창 없이 자동으로 공유합니다.** 컴퓨터를 처음 연결할 때만 한 번 승인하면 됩니다.
+평소에는 그냥 복사하고 붙여넣으세요. Windows·Linux는 **Ctrl+V**, Mac은 **⌘V**입니다. 파일·폴더도 매번 묻지 않고 실제 내용을 전송합니다. Moonlight로 newserver 화면만 보는 노트북에는 설치하지 않아도 됩니다.
 
-각 컴퓨터에서 **로그인하면 자동으로 켜기**를 체크하고 저장하세요. Main을 껐다 켜도 로그인하면 자동 실행·재접속됩니다. newserver는 계속 켜 두면 됩니다. Moonlight로 newserver 화면만 보는 노트북에는 설치할 필요 없습니다.
+창을 닫으면 트레이에서 계속 동작합니다. 새 설정은 로그인 자동 실행이 기본이며 기존에 꺼 둔 선택은 유지합니다. Main을 껐다 켜면 자동 재연결하고, 이후 새로 복사한 내용부터 공유합니다. **IP를 입력받아 승인한 PC가 연결 중심이므로, 그 PC가 꺼져 있는 동안 그룹 공유는 멈춥니다.**
 
-창을 닫아도 트레이 / 메뉴 막대에서 계속 동작합니다. 허브 창에서 연결된 대수와 등록한 컴퓨터를 확인하거나 특정 컴퓨터의 접속 권한을 없앨 수 있습니다.
+용량·자동 시작·파일 수신 옵션은 **고급 설정…**에 있습니다. 기본 클립보드 256MiB / 파일 16GiB이며 최대 512MiB / 1TiB입니다.
 
-## 마우스·키보드도 같이 쓰기
+## 연결이 안 되면
 
-**ClipBridge만 설치하면 됩니다.** 각 컴퓨터의 **마우스·키보드 / 화면 배치…**에서 연결 코드를 서로 등록하고, 화면을 실제 모니터 위치처럼 놓은 뒤 공유를 켜세요. [처음 설정 3단계](docs/MOUSE_KEYBOARD.md)
+- 양쪽을 같은 버전으로 업데이트하고 LAN 또는 Tailscale에 연결하세요. 일반 Windows 버전은 방화벽의 **사설 네트워크** 허용이 필요할 수 있습니다. 설치형은 전용 사설 규칙을 관리합니다.
+- Mac은 손쉬운 사용·입력 모니터링 권한과 최초 실행 허용이 필요할 수 있습니다. Linux는 X11을 지원합니다. Wayland는 지원하지 않습니다.
+- 설치형 사용법·검증 범위는 [UAC 안내](docs/WINDOWS_UAC.md), 자세한 내용은 [통합 연결 안내](docs/CONNECTION.md)에 있습니다.
 
-## 용량과 고급 설정
+승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-**고급 설정…**은 별도 창으로 열립니다. 기본 클립보드 **256MiB**, 파일·폴더 한 번에 **16GiB**이며 각각 최대 **512MiB / 1TiB**까지 설정할 수 있습니다. 큰 용량은 보내는 쪽·받는 쪽·허브 모두 같은 값으로 높이세요. 디스크 공간도 필요합니다.
-
-업데이트는 기존 앱을 트레이로 종료한 뒤 새 버전을 실행하세요. 연결 정보는 유지합니다. 새 실행 파일에서 자동 시작 설정도 저장하세요.
-
-## 잘 안 될 때
-
-- **연결 안 됨:** 참여 컴퓨터에 입력한 허브 IP와 네트워크를 확인하세요. 허브의 Windows 방화벽에서는 **사설 네트워크** 연결을 허용하세요.
-- **Mac 첫 실행 차단:** 개발자 서명·공증을 하지 않은 앱입니다. 출처를 확인하고 시스템 설정 → 개인정보 보호 및 보안에서 실행을 허용하세요. 클립보드·키체인 접근 요청도 허용합니다.
-- **Linux:** X11 데스크톱을 지원합니다. Wayland의 백그라운드 클립보드는 데스크톱 제약으로 보장하지 않습니다. [Linux 안내](docs/LINUX.md)
-- **붙여넣기 안 됨:** `연결됨`을 확인하고 다시 복사하세요. 재연결 시 이전 클립보드를 자동으로 덮어쓰지 않습니다.
-
-통신은 TLS로 암호화하고 승인한 컴퓨터만 접속합니다. 외부 서버·텔레메트리·클라우드를 사용하지 않습니다. 허브가 꺼지면 모든 컴퓨터 사이의 공유가 중단됩니다.
-
-서로 다른 OS 사이에서도 **파일 내용을 실제 전송**하고, 탐색기·Finder·Linux 파일 관리자에서 붙여넣을 수 있는 목록을 등록합니다. 앱별 실물 기기 붙여넣기·마우스 이동은 별도 확인이 필요합니다. Linux 검증 환경은 Ubuntu 24.04 X11입니다.
-
-Windows 자동 검사 92개와 설치형의 보안 ACL 데스크톱 입력·서비스 복구·방화벽·제거 검사를 통과했습니다. 실제 UAC 승인 창·로그인 화면·실물 PC 재부팅은 미검증입니다.
-
-[검증 결과](docs/VALIDATION-v1.5.md) · [여러 대 연결](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [지원 형식](docs/FORMATS.md) · [개발·빌드](docs/DEVELOPMENT.md)
+[검증 결과](docs/VALIDATION-v1.6.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)

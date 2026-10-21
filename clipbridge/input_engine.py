@@ -22,6 +22,7 @@ from .input_bundle import bundled_engine, bundle_directory
 SCREEN_BOOLEANS = {"halfDuplexCapsLock", "halfDuplexNumLock", "halfDuplexScrollLock", "switchCornerTopLeft", "switchCornerTopRight",
     "switchCornerBottomLeft", "switchCornerBottomRight", "weakX11Focus", "xtestIsXineramaUnaware"}
 SCREEN_MODIFIERS = {"modifierAlt", "modifierAltGr", "modifierCtrl", "modifierMeta", "modifierShift", "modifierSuper"}
+SETUP_PORT = 24802
 
 
 def screen_options(value):

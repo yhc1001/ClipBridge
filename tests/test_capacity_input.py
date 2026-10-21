@@ -146,6 +146,15 @@ def test_advanced_dialog_and_screen_layout_remain_usable(qt_app, tmp_path, monke
         def start(self):
             pass
     monkeypatch.setattr(ui, "ClipboardWorker", DummyClipboard)
+    class DummySetup:
+        def __init__(self, *args):
+            pass
+        def start(self):
+            pass
+        def stop(self):
+            pass
+    monkeypatch.setattr(ui, "InputSetup", DummySetup)
+    monkeypatch.setattr(ui, "InputManager", DummySetup)
     monkeypatch.setattr(ui.Window, "reconnect", lambda self: None)
     store = ConfigStore(tmp_path / "ui")
     config = store.load()
@@ -179,4 +188,103 @@ def test_advanced_dialog_and_screen_layout_remain_usable(qt_app, tmp_path, monke
         window.closing = True
         window.close()
         window.deleteLater()
+        qt_app.processEvents()
+
+
+def test_unified_window_ip_button_one_approval_and_mouse_toggle_keep_clipboard(qt_app, tmp_path, monkeypatch):
+    import os, socket, time
+    if os.environ.get("GITHUB_ACTIONS") != "true" and os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+        pytest.skip("GUI integration requires an offscreen/disposable desktop")
+    from types import SimpleNamespace
+    from PySide6.QtWidgets import QMessageBox, QPushButton
+    from clipbridge import ui
+    from clipbridge.input_setup import InputSetup
+    if os.environ.get("CLIPBRIDGE_TEST_PREVIEW"):
+        from PySide6.QtGui import QFont, QFontDatabase
+        font_path = Path(os.environ.get("SystemRoot", "C:/Windows")) / "Fonts/malgun.ttf"
+        if font_path.is_file():
+            QFontDatabase.addApplicationFont(str(font_path))
+            qt_app.setFont(QFont("Malgun Gothic", 9))
+    class Clipboard:
+        def __init__(self, config, ledger, copied, applied, notify):
+            self.received = None
+            self.applied = applied
+        def start(self):
+            pass
+        def stop(self):
+            pass
+        def apply(self, snapshot, done):
+            self.received = snapshot
+            self.applied(snapshot)
+            done(True)
+    class Input:
+        def __init__(self, *args):
+            pass
+        def start(self):
+            pass
+        def stop(self):
+            pass
+    monkeypatch.setattr(ui, "ClipboardWorker", Clipboard)
+    monkeypatch.setattr(ui, "InputManager", Input)
+    monkeypatch.setattr(ui, "InputSetup", lambda *args: InputSetup(*args, bind="127.0.0.1", port=0))
+    monkeypatch.setattr(ui.Window, "device_addresses", staticmethod(lambda: ["127.0.0.1"]))
+    def tray(window):
+        window.tray = SimpleNamespace(hide=lambda: None, setIcon=lambda *args: None, setToolTip=lambda *args: None, showMessage=lambda *args: None)
+        window.pause_action = SimpleNamespace(setText=lambda *args: None)
+    monkeypatch.setattr(ui.Window, "build_tray", tray)
+    windows = []
+    def pump(predicate, seconds=10):
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            qt_app.processEvents()
+            if predicate():
+                return
+            time.sleep(.01)
+        raise AssertionError("Unified UI did not connect")
+    try:
+        for index, name in enumerate(("Main", "newserver")):
+            store = ConfigStore(tmp_path / str(index))
+            config = store.load()
+            config.mouse_enabled = False
+            config.bind_ip = "127.0.0.1"
+            with socket.socket() as free:
+                free.bind(("127.0.0.1", 0))
+                config.port = free.getsockname()[1]
+            config.input_settings = {**defaults(), "name": name, "screens": [{"name": name, "x": 1, "y": 1}]}
+            window = ui.Window(store, config)
+            window.show()
+            windows.append(window)
+        main, client = windows
+        pump(lambda: main.input_setup.ready.is_set() and client.input_setup.ready.is_set())
+        connect = client.input_setup.connect_to
+        monkeypatch.setattr(client.input_setup, "connect_to", lambda address: connect(address, main.input_setup.port))
+        client.input_dialog.address.setText("127.0.0.1")
+        client.input_dialog.connect_button.click()
+        pump(lambda: main.boxes)
+        assert len(main.boxes) == 1 and "클립보드" in main.boxes[0].text()
+        main.boxes[0].button(QMessageBox.StandardButton.Yes).click()
+        pump(lambda: main.connected and client.connected and client.config.input_settings.get("easy_controller"))
+        assert main.input_dialog.table.rowCount() == client.input_dialog.table.rowCount() == 2
+        assert not main.role.isVisible() and not main.input_dialog.mode.isVisible()
+        visible_buttons = [button.text() for button in main.findChildren(QPushButton) if button.isVisible()]
+        assert not any("코드" in label or "화면 추가" in label for label in visible_buttons)
+        assert not main.config.input_settings["enabled"]
+        client.local_copy(Snapshot({"text": b"one approval clipboard"}, [], client.ledger.local()))
+        pump(lambda: main.clipboard.received is not None)
+        assert main.clipboard.received.formats["text"] == b"one approval clipboard"
+        client.mouse_toggle.setChecked(True)
+        pump(lambda: client.config.mouse_enabled)
+        client.mouse_toggle.setChecked(False)
+        pump(lambda: not client.config.input_settings["enabled"])
+        assert main.connected and client.connected
+        if os.environ.get("CLIPBRIDGE_TEST_PREVIEW"):
+            main.grab().save(os.environ["CLIPBRIDGE_TEST_PREVIEW"])
+    finally:
+        for window in reversed(windows):
+            window.closing = True
+            window.input_setup.stop()
+            window.stop_network()
+            window.transfers.close()
+            window.close()
+            window.deleteLater()
         qt_app.processEvents()

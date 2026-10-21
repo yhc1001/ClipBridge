@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import dataclasses
+import concurrent.futures
+import copy
 import secrets
 import sys
 from datetime import datetime
@@ -18,8 +20,9 @@ from .clipboard import ClipboardWorker
 from .files import TransferStore
 from .model import FORMATS, MAX_CLIP, MAX_TOTAL, Ledger, private_address
 from .network import NetworkEngine
-from .security import fingerprint, pairing_token, parse_pairing, protect
+from .security import fingerprint, pairing_token, parse_pairing, protect, unprotect
 from .input_engine import InputManager
+from .input_setup import InputSetup
 
 
 class Events(QObject):
@@ -61,83 +64,60 @@ class Window(QMainWindow):
         self.online_devices = set()
         self.closing = False
         self.boxes = []
+        self.input_setup_status = "Main 연결 준비 중…"
         self.input_manager = InputManager(config, store.directory, self.events.notification.emit, self)
-        self.setWindowTitle(f"ClipBridge {__version__} · 클립보드 연결")
+        self.input_setup = InputSetup(config, self.queue_input_settings, self.events.notification.emit, self.events.approval.emit)
+        self.setWindowTitle(f"ClipBridge {__version__} · PC 연결")
         self.setWindowIcon(app_icon())
-        self.resize(560, 740)
+        self.resize(700, 740)
         self.clipboard = ClipboardWorker(config, self.ledger, self.local_copy, self.applied,
                                          lambda value: self.events.notification.emit("status", value))
         self.build_ui()
         self.build_tray()
         self.clipboard.start()
+        self.input_setup.start()
         QTimer.singleShot(0, self.reconnect)
         QTimer.singleShot(0, self.input_manager.start)
 
     def build_ui(self):
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        title = QLabel("ClipBridge")
-        title.setStyleSheet("font-size: 25px; font-weight: 600; color: #1769c2;")
-        layout.addWidget(title)
-        self.connection = QLabel("연결 끊김")
-        self.status = QLabel("최초 연결 설정을 완료하세요.")
-        self.status.setWordWrap(True)
-        self.last = QLabel("마지막 동기화: 없음")
-        layout.addWidget(self.connection)
-        layout.addWidget(self.status)
-        layout.addWidget(self.last)
-        self.input_status = QLabel("마우스·키보드 공유: 기존 인증서 없음 · 마우스 연결 코드를 다시 등록하세요" if self.config.input_settings.get("identity_missing") else "마우스·키보드 공유: 꺼짐 · 내장 엔진 사용")
-        self.input_status.setWordWrap(True)
-        layout.addWidget(self.input_status)
-        group = QGroupBox("처음 한 번만 연결하세요")
-        form = QFormLayout(group)
-        self.role = QComboBox()
-        self.role.addItem("허브 · 항상 켜 두는 newserver", "main")
-        self.role.addItem("참여 컴퓨터 · Main / Mac 등", "server")
+        # Legacy connection controls stay out of the product flow. Their values
+        # are retained for existing configuration/advanced-save compatibility.
+        self.role = QComboBox(self)
+        self.role.addItem("연결받는 PC", "main")
+        self.role.addItem("연결하는 PC", "server")
         self.role.setCurrentIndex(0 if self.config.role == "main" else 1)
-        self.peer = QLineEdit(self.config.peer_ip)
-        self.peer.setPlaceholderText("허브(newserver)의 LAN 또는 Tailscale IP")
-        self.port = QSpinBox()
+        self.peer, self.bind = QLineEdit(self.config.peer_ip, self), QLineEdit(self.config.bind_ip, self)
+        self.port = QSpinBox(self)
         self.port.setRange(1024, 65535)
         self.port.setValue(self.config.port)
-        self.bind = QLineEdit(self.config.bind_ip)
-        self.pair_state = QLabel()
+        self.pair_state = QLabel(self)
+        self.devices_group = QGroupBox(self)
+        self.devices = QListWidget(self.devices_group)
+        for control in (self.role, self.peer, self.bind, self.port, self.pair_state, self.devices_group):
+            control.hide()
         self.update_pair_state()
-        form.addRow("1. 이 컴퓨터", self.role)
-        form.addRow("2. 허브 IP 주소", self.peer)
-        own_ip = QPushButton("내 IP 주소 확인")
-        own_ip.clicked.connect(self.show_addresses)
-        form.addRow(own_ip)
-        form.addRow("인증", self.pair_state)
-        buttons = QHBoxLayout()
-        for text, function in (("연결 코드 복사", self.copy_code), ("연결 코드 붙여넣기", self.import_code)):
-            button = QPushButton(text)
-            button.clicked.connect(function)
-            buttons.addWidget(button)
-        form.addRow("3. 연결 코드", buttons)
-        layout.addWidget(group)
-        self.devices_group = QGroupBox("등록한 컴퓨터 · 허브 1대 + 참여 컴퓨터 최대 16대")
-        devices_layout = QVBoxLayout(self.devices_group)
-        self.devices = QListWidget()
-        self.devices.setMaximumHeight(100)
-        devices_layout.addWidget(self.devices)
-        remove = QPushButton("선택한 컴퓨터 연결 해제")
-        remove.clicked.connect(self.remove_device)
-        devices_layout.addWidget(remove)
-        layout.addWidget(self.devices_group)
         self.refresh_devices()
-        options = QGroupBox("자동으로 공유할 내용")
-        form = QFormLayout(options)
-        self.text, self.images, self.files, self.autostart = QCheckBox("글자와 서식"), QCheckBox("이미지"), QCheckBox("파일 · 연결된 컴퓨터끼리 자동 공유"), QCheckBox("로그인하면 자동으로 켜기")
-        for checkbox, key in ((self.text, "text"), (self.images, "images"), (self.files, "files"), (self.autostart, "autostart")):
-            checkbox.setChecked(getattr(self.config, key))
-            form.addRow(checkbox)
-        self.direction = QComboBox()
+
+        self.advanced_dialog = QDialog(self)
+        self.advanced_dialog.setWindowTitle("ClipBridge · 고급 설정")
+        self.advanced_dialog.resize(490, 470)
+        advanced_layout = QVBoxLayout(self.advanced_dialog)
+        advanced_scroll = QScrollArea()
+        advanced_scroll.setWidgetResizable(True)
+        fields = QWidget()
+        form = QFormLayout(fields)
+        self.text, self.images, self.files = QCheckBox("텍스트와 서식"), QCheckBox("이미지"), QCheckBox("파일·폴더")
+        self.autostart = QCheckBox("로그인하면 자동 실행")
+        for control, key in ((self.text, "text"), (self.images, "images"), (self.files, "files"), (self.autostart, "autostart")):
+            control.setChecked(getattr(self.config, key))
+            form.addRow(control)
+        self.direction = QComboBox(self)
         self.direction.addItem("양방향", "both")
-        self.direction.addItem("허브 → 참여 컴퓨터만", "main_to_server")
+        self.direction.addItem("연결받는 PC → 다른 PC", "main_to_server")
         self.direction.setCurrentIndex(0 if self.config.direction == "both" else 1)
+        self.direction.hide()
         self.file_policy = QComboBox()
-        for label, value in (("확인 없이 자동 수신 (기본)", "allow"), ("전송마다 확인 (선택)", "ask"), ("파일 수신·전송 차단", "block")):
+        for label, value in (("자동으로 수신", "allow"), ("전송마다 확인", "ask"), ("파일 공유 차단", "block")):
             self.file_policy.addItem(label, value)
         self.file_policy.setCurrentIndex(self.file_policy.findData(self.config.file_policy))
         self.clip_limit, self.file_limit = QSpinBox(), QSpinBox()
@@ -145,65 +125,83 @@ class Window(QMainWindow):
         self.file_limit.setRange(1, MAX_TOTAL // 1024**2)
         self.clip_limit.setValue(self.config.clip_limit_mb)
         self.file_limit.setValue(self.config.file_limit_mb)
-        layout.addWidget(options)
-        advanced_toggle = QPushButton("고급 설정…")
-        self.advanced_dialog = QDialog(self)
-        self.advanced_dialog.setWindowTitle("ClipBridge · 고급 설정")
-        self.advanced_dialog.resize(560, 480)
-        advanced_layout = QVBoxLayout(self.advanced_dialog)
-        advanced_scroll = QScrollArea()
-        advanced_scroll.setWidgetResizable(True)
-        advanced = QGroupBox("고급 설정")
-        advanced_form = QFormLayout(advanced)
-        advanced_form.addRow("연결 포트 (양쪽 동일)", self.port)
-        advanced_form.addRow("허브 수신 IP", self.bind)
-        advanced_form.addRow("공유 방향", self.direction)
-        advanced_form.addRow("파일 수신 방식", self.file_policy)
-        advanced_form.addRow("클립보드 제한 (MiB)", self.clip_limit)
-        advanced_form.addRow("파일 합계 제한 (MiB)", self.file_limit)
-        reset = QPushButton("등록한 컴퓨터 연결 초기화")
-        reset.clicked.connect(self.reset_pair)
-        advanced_form.addRow(reset)
-        advanced_scroll.setWidget(advanced)
+        form.addRow("파일 수신", self.file_policy)
+        form.addRow("클립보드 용량 (MiB)", self.clip_limit)
+        form.addRow("파일 용량 (MiB)", self.file_limit)
+        self.pause = QPushButton("재개" if self.config.paused else "일시 중지")
+        self.pause.clicked.connect(self.toggle_pause)
+        form.addRow("클립보드 동기화", self.pause)
+        reconnect = QPushButton("연결 다시 시도")
+        reconnect.clicked.connect(self.reconnect_all)
+        form.addRow(reconnect)
+        advanced_scroll.setWidget(fields)
         advanced_layout.addWidget(advanced_scroll)
         advanced_buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-        advanced_buttons.button(QDialogButtonBox.StandardButton.Save).setText("저장 및 연결")
+        advanced_buttons.button(QDialogButtonBox.StandardButton.Save).setText("저장")
         advanced_buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("취소")
         advanced_buttons.accepted.connect(self.save_advanced)
         advanced_buttons.rejected.connect(self.advanced_dialog.reject)
         self.advanced_dialog.rejected.connect(self.load_advanced)
         advanced_layout.addWidget(advanced_buttons)
-        advanced_toggle.clicked.connect(self.show_advanced)
-        controls = QVBoxLayout()
-        controls.setContentsMargins(10, 0, 10, 10)
-        controls.addWidget(advanced_toggle)
-        input_setup = QPushButton("마우스·키보드 / 화면 배치…")
-        input_setup.clicked.connect(self.show_input_settings)
-        controls.addWidget(input_setup)
-        actions = QHBoxLayout()
-        save, reconnect, self.pause = QPushButton("저장 및 연결"), QPushButton("재연결"), QPushButton("재개" if self.config.paused else "일시 중지")
-        save.clicked.connect(self.save_settings)
-        reconnect.clicked.connect(self.reconnect)
-        self.pause.clicked.connect(self.toggle_pause)
-        for button in (save, reconnect, self.pause):
-            actions.addWidget(button)
-        controls.addLayout(actions)
-        note = QLabel("연결되면 평소처럼 복사하고 붙여넣으세요.\n창을 닫아도 " + ("메뉴 막대" if sys.platform == "darwin" else "트레이") + "에서 계속 실행됩니다.")
-        note.setWordWrap(True)
-        controls.addWidget(note)
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        title = QLabel("ClipBridge")
+        title.setStyleSheet("font-size: 25px; font-weight: 600; color: #1769c2;")
+        layout.addWidget(title)
+        self.connection = QLabel("연결 요청 대기 중")
+        layout.addWidget(self.connection)
+        self.status = QLabel("IP 입력 → 상대 PC에서 승인하면 클립보드와 화면이 함께 연결됩니다.")
+        self.status.setWordWrap(True)
+        self.last = QLabel("마지막 복사: 없음")
+        self.input_status = QLabel("마우스·키보드: 연결 대기 중")
+        self.input_status.setWordWrap(True)
+        from .input_ui import InputDialog
+        self.input_dialog = InputDialog(self, embedded=True)
+        layout.addWidget(self.input_dialog, 1)
+        self.mouse_toggle = QCheckBox("마우스·키보드 공유")
+        self.mouse_toggle.setChecked(self.config.mouse_enabled)
+        self.mouse_toggle.toggled.connect(self.toggle_mouse)
+        layout.addWidget(self.mouse_toggle)
+        layout.addWidget(self.input_status)
+        layout.addWidget(self.last)
+        layout.addWidget(self.status)
+        bottom = QHBoxLayout()
+        advanced = QPushButton("고급 설정…")
+        advanced.clicked.connect(self.show_advanced)
+        bottom.addWidget(advanced)
+        layout.addLayout(bottom)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(widget)
-        central = QWidget()
-        central_layout = QVBoxLayout(central)
-        central_layout.setContentsMargins(0, 0, 0, 0)
-        central_layout.addWidget(scroll, 1)
-        central_layout.addLayout(controls)
-        self.setCentralWidget(central)
-        self.role.currentIndexChanged.connect(self.role_view)
-        self.role_view()
+        self.setCentralWidget(scroll)
+
+    def toggle_mouse(self, enabled):
+        from .input_engine import defaults
+        self.config.mouse_enabled = enabled
+        value = {**defaults(), **self.config.input_settings}
+        trusted = value["trusted_servers"] if value["mode"] == "client" else value["trusted_clients"]
+        value["enabled"] = bool(enabled and trusted)
+        self.apply_input_settings(value)
+        try:
+            self.input_setup.publish()
+        except ValueError:
+            pass
+
+    def reconnect_all(self):
+        self.reconnect()
+        value = self.config.input_settings
+        if value.get("easy_controller"):
+            try:
+                self.input_setup.connect_to(value["server_ip"], value.get("easy_setup_port", 24802))
+            except ValueError as error:
+                self.status.setText(str(error))
+        self.input_manager.stop()
+        self.input_manager.start()
 
     def load_advanced(self):
+        for control, key in ((self.text, "text"), (self.images, "images"), (self.files, "files"), (self.autostart, "autostart")):
+            control.setChecked(getattr(self.config, key))
         self.port.setValue(self.config.port)
         self.bind.setText(self.config.bind_ip)
         self.direction.setCurrentIndex(self.direction.findData(self.config.direction))
@@ -234,9 +232,61 @@ class Window(QMainWindow):
         else:
             self.input_dialog.data = {**self.input_dialog.data, **self.config.input_settings}
             self.input_dialog.load()
+        if not self.input_dialog.isWindow():
+            self.show_settings()
+            return
         self.input_dialog.show()
         self.input_dialog.raise_()
         self.input_dialog.activateWindow()
+
+    def queue_input_settings(self, settings, show=False, clipboard=None):
+        future = concurrent.futures.Future()
+        self.events.notification.emit("input_configure", {"settings": settings, "show": show, "clipboard": clipboard, "future": future})
+        return future
+
+    def apply_input_settings(self, settings, show=False, clipboard=None):
+        from .input_engine import defaults, validate
+        from .service_policy import public_settings
+        validate(settings)
+        previous = self.config.input_settings
+        old_config = dataclasses.asdict(self.config)
+        before, after = public_settings({**defaults(), **previous}), public_settings(settings)
+        if before["mode"] == after["mode"] == "client":
+            before.pop("screens")
+            after.pop("screens")
+        self.config.input_settings = copy.deepcopy(settings)
+        try:
+            for key, value in (clipboard or {}).items():
+                if key not in {"role", "peer_ip", "peer_id", "peer_pin", "port", "protected_secret", "trusted_peers"}:
+                    raise ValueError("Invalid connection configuration")
+                setattr(self.config, key, copy.deepcopy(value))
+            self.store.save(self.config)
+        except Exception:
+            for key, value in old_config.items():
+                setattr(self.config, key, value)
+            raise
+        endpoint = ("role", "peer_ip", "peer_id", "peer_pin", "port")
+        changed = any(getattr(self.config, key) != old_config[key] for key in endpoint)
+        if self.config.role == "server" and "protected_secret" in (clipboard or {}):
+            changed |= self.config.secret != unprotect(old_config["protected_secret"])
+        changed |= bool(set(old_config["trusted_peers"]) - set(self.config.trusted_peers))
+        self.role.setCurrentIndex(0 if self.config.role == "main" else 1)
+        self.peer.setText(self.config.peer_ip)
+        self.port.setValue(self.config.port)
+        self.refresh_devices()
+        self.update_pair_state()
+        if changed:
+            self.reconnect()
+        if before != after:
+            self.input_manager.stop()
+            self.input_manager.start()
+        if not settings["enabled"]:
+            self.input_status.setText("마우스·키보드 공유: 꺼짐")
+        if getattr(self, "input_dialog", None):
+            self.input_dialog.data = copy.deepcopy(settings)
+            self.input_dialog.load()
+        if show:
+            self.show_input_settings()
 
     def refresh_devices(self):
         self.devices.clear()
@@ -265,7 +315,7 @@ class Window(QMainWindow):
         menu = QMenu()
         menu.addAction("ClipBridge 설정", self.show_settings)
         self.pause_action = menu.addAction("재개" if self.config.paused else "일시 중지", self.toggle_pause)
-        menu.addAction("재연결", self.reconnect)
+        menu.addAction("재연결", self.reconnect_all)
         menu.addSeparator()
         menu.addAction("종료", self.quit)
         self.tray.setContextMenu(menu)
@@ -278,7 +328,8 @@ class Window(QMainWindow):
         self.raise_()
         self.activateWindow()
 
-    def show_addresses(self):
+    @staticmethod
+    def device_addresses():
         addresses = []
         for address in QNetworkInterface.allAddresses():
             if address.isLoopback():
@@ -289,7 +340,11 @@ class Window(QMainWindow):
                     addresses.append(value)
             except ValueError:
                 pass
-        QMessageBox.information(self, "내 IP 주소", "허브에서 확인한 주소를 참여 컴퓨터의 ‘허브 IP 주소’에 넣으세요.\n\n" + ("\n".join(addresses) or "LAN 또는 Tailscale에 연결한 뒤 다시 확인하세요."))
+        return addresses
+
+    def show_addresses(self):
+        addresses = self.device_addresses()
+        QMessageBox.information(self, "이 PC의 IP 주소", "다른 PC에서 아래 주소를 입력하고 연결 요청을 보내세요.\n이 PC에서 한 번 승인하면 연결됩니다.\n\n" + ("\n".join(addresses) or "LAN 또는 Tailscale에 연결한 뒤 다시 확인하세요."))
 
     def update_pair_state(self):
         self.pair_state.setText(f"참여 컴퓨터 {len(self.config.trusted_peers)}대 등록" if self.config.role == "main" else "허브 등록됨" if self.config.peer_id else "허브의 연결 코드를 붙여넣으세요")
@@ -401,6 +456,27 @@ class Window(QMainWindow):
 
     def notification(self, kind, info):
         if self.closing:
+            if kind == "input_configure" and not info["future"].done():
+                info["future"].set_exception(RuntimeError("Application is closing"))
+            return
+        if kind == "input_configure":
+            future = info["future"]
+            if future.done():
+                return
+            try:
+                self.apply_input_settings(info["settings"], info["show"], info.get("clipboard"))
+                future.set_result(True)
+            except Exception as error:
+                if not future.done():
+                    future.set_exception(error)
+            return
+        if kind == "input_setup_status":
+            self.input_setup_status = str(info)
+            if getattr(self, "input_dialog", None):
+                self.input_dialog.status.setText(str(info))
+                self.input_dialog.connect_button.setEnabled(not str(info).startswith(("Main 연결 중", "Main에서 승인을")))
+            return
+        if kind == "input_setup_devices":
             return
         if kind == "input_status":
             self.input_status.setText(str(info))
@@ -439,7 +515,12 @@ class Window(QMainWindow):
         box.setIcon(QMessageBox.Icon.Question)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         box.setDefaultButton(QMessageBox.StandardButton.No)
-        if kind == "pair":
+        if kind == "input_pair":
+            box.setWindowTitle("PC 연결 승인")
+            box.setText(f"{info['name']} ({info['ip']})에서 연결을 요청했습니다.\n\n확인 번호: {info['code']}\n상대 PC에 표시된 번호와 같은지 확인하세요.\n\n허용하면 클립보드·파일·화면 배치가 함께 연결됩니다. 마우스 공유는 ON/OFF로 바꿀 수 있습니다.")
+            box.button(QMessageBox.StandardButton.Yes).setText("연결 허용")
+            box.button(QMessageBox.StandardButton.No).setText("거절")
+        elif kind == "pair":
             box.setWindowTitle("새 장치 연결 승인")
             box.setText(f"{info.get('name', '컴퓨터')} ({info['ip']})에서 접속했습니다.\n장치 ID: {info['device']}\n이 컴퓨터를 계속 신뢰할까요?")
         else:
@@ -462,7 +543,7 @@ class Window(QMainWindow):
         timer.timeout.connect(lambda: box.reject() if future.done() else None)
         timer.start(250)
         box.open()
-        self.tray.showMessage("ClipBridge 승인 필요", "설정 창에서 " + ("장치 연결" if kind == "pair" else "파일 수신") + "을 승인하세요.")
+        self.tray.showMessage("ClipBridge 승인 필요", "설정 창에서 " + ("마우스·키보드 연결" if kind == "input_pair" else "장치 연결" if kind == "pair" else "파일 수신") + "을 승인하세요.")
 
     def closeEvent(self, event):
         if not self.closing and QSystemTrayIcon.isSystemTrayAvailable():
@@ -475,6 +556,7 @@ class Window(QMainWindow):
         if self.closing:
             return
         self.closing = True
+        self.input_setup.stop()
         self.input_manager.stop()
         for box in list(self.boxes):
             box.reject()

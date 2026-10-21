@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from types import SimpleNamespace
@@ -25,7 +26,7 @@ import win32serviceutil
 import win32ts
 from multiprocessing.connection import PipeConnection
 
-from .input_engine import defaults, native_library_path, prepare_profile
+from .input_engine import SETUP_PORT, defaults, native_library_path, prepare_profile
 from .security import protect
 from .service_policy import MAX_REQUEST, canonical_identity, validate_request, validate_settings
 from .windows_service_client import PIPE, REGISTRY_KEY, SERVICE_NAME, process_identity
@@ -336,6 +337,15 @@ class ClipBridgeInputService(win32serviceutil.ServiceFramework):
             win32service.CloseServiceHandle(service)
             win32service.CloseServiceHandle(manager)
         owner = owner_sid()
+        # A normal (UAC-filtered) owner must be able to verify our image path.
+        # Default SYSTEM process ACLs can deny even QUERY_LIMITED_INFORMATION.
+        # Grant only that query right, never memory access, injection or stop.
+        process = win32api.GetCurrentProcess()
+        descriptor = win32security.GetSecurityInfo(process, win32security.SE_KERNEL_OBJECT, win32security.DACL_SECURITY_INFORMATION)
+        acl = descriptor.GetSecurityDescriptorDacl()
+        acl.AddAccessAllowedAce(win32security.ACL_REVISION, 0x1000, win32security.ConvertStringSidToSid(owner))
+        win32security.SetSecurityInfo(process, win32security.SE_KERNEL_OBJECT, win32security.DACL_SECURITY_INFORMATION,
+                                     None, None, acl, None)
         manager = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CONNECT)
         access = win32con.READ_CONTROL | win32con.WRITE_DAC
         service = win32service.OpenService(manager, SERVICE_NAME, access)
@@ -352,6 +362,8 @@ class ClipBridgeInputService(win32serviceutil.ServiceFramework):
             win32service.CloseServiceHandle(service)
             win32service.CloseServiceHandle(manager)
         controller = InputController(Path(os.environ["ProgramData"]) / "ClipBridgeInputService", owner)
+        from .windows_input_firewall import update_setup
+        update_setup(Path(sys.executable).parent.parent / "ClipBridge.exe", (SETUP_PORT, 45832))
         listener = threading.Thread(target=self.pipe_loop, args=(controller, owner), daemon=True)
         listener.start()
         try:
@@ -362,3 +374,4 @@ class ClipBridgeInputService(win32serviceutil.ServiceFramework):
             listener.join(timeout=4)
             with controller.lock:
                 controller.stop_child()
+            update_setup()

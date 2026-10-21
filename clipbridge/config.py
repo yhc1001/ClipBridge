@@ -46,11 +46,12 @@ class Config:
     file_allow_ids: list = field(default_factory=list)
     direction: str = "both"
     paused: bool = False
-    autostart: bool = False
+    autostart: bool = True
     clip_limit_mb: int = 256
     file_limit_mb: int = 16384
     limits_version: int = 1
     input_settings: dict = field(default_factory=dict)
+    mouse_enabled: bool = True
 
     @property
     def secret(self):
@@ -87,7 +88,7 @@ class Config:
             if self.role == "server":
                 private_address(self.peer_ip)
                 if not self.peer_pin or not self.peer_id:
-                    raise ValueError("허브에서 복사한 연결 코드를 먼저 붙여넣으세요.")
+                    raise ValueError("상대 PC의 IP로 연결을 요청하고 승인받으세요.")
 
     def migrate_trust(self):
         """Keep the old 1:1 peer's key; issue a separate invitation for new devices."""
@@ -122,6 +123,9 @@ class ConfigStore:
             if len(config.secret) != 32:
                 raise ValueError("DPAPI secret error")
             changed = config.migrate_trust()
+            if "mouse_enabled" not in value and config.input_settings:
+                config.mouse_enabled = bool(config.input_settings.get("enabled", False))
+                changed = True
             if config.input_settings.get("certificate"):
                 from .input_engine import migrate_identity
                 try:
@@ -147,9 +151,6 @@ class ConfigStore:
                 self.save(config)
             return config
         config = Config()
-        if sys.platform == "win32":
-            from .windows_service_client import installation
-            config.autostart = bool(installation())
         config.protected_secret = protect(secrets.token_bytes(32))
         config.cert_pem, config.protected_key = make_identity(config.device_id)
         self.save(config)

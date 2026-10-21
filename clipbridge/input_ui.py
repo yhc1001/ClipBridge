@@ -2,7 +2,7 @@
 import sys
 
 from PySide6.QtCore import Qt, QSignalBlocker, QTimer
-from PySide6.QtGui import QBrush, QColor, QPen
+from PySide6.QtGui import QBrush, QColor, QPen, QFontMetrics
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFormLayout, QGraphicsItem, QGraphicsRectItem, QGraphicsScene, QGraphicsSimpleTextItem, QGraphicsView,
     QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea,
@@ -19,7 +19,10 @@ class ComputerTile(QGraphicsRectItem):
         self.setPen(QPen(QColor("#1769c2"), 2))
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-        label = QGraphicsSimpleTextItem(name[:16], self)
+        label = QGraphicsSimpleTextItem("", self)
+        text = name + (" · 이 PC" if name == owner.data["name"] else "")
+        label.setText(QFontMetrics(label.font()).elidedText(text, Qt.TextElideMode.ElideRight, 96))
+        self.setToolTip(text)
         label.setPos(8, 23)
         self.setPos(x * 132, y * 85)
 
@@ -30,27 +33,33 @@ class ComputerTile(QGraphicsRectItem):
 
 
 class InputDialog(QDialog):
-    def __init__(self, owner):
+    def __init__(self, owner, embedded=False):
         super().__init__(owner)
+        if embedded:
+            self.setWindowFlags(Qt.WindowType.Widget)
         self.owner = owner
         self.setWindowTitle("ClipBridge · 마우스·키보드 / 화면 배치")
-        self.resize(660, 660)
+        self.resize(680, 510)
         self.data = {**defaults(), **owner.config.input_settings}
         outer = QVBoxLayout(self)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        note = QLabel("마우스를 화면 가장자리로 옮겨 다른 컴퓨터로 넘어갑니다.\n각 컴퓨터에서 마우스 연결 코드를 서로 등록하고 화면을 배치한 뒤 공유를 켜세요.")
+        note = QLabel("한 PC는 ClipBridge를 켜 두세요. 다른 PC에서 그 IP를 입력하세요.\n한 번 승인하면 클립보드·파일·화면 배치가 함께 연결됩니다.")
         note.setWordWrap(True)
         layout.addWidget(note)
+        self.advanced_dialog = QDialog(self)
+        self.advanced_dialog.setWindowTitle("마우스·키보드 · 고급 설정")
+        self.advanced_dialog.resize(540, 460)
+        advanced_layout = QVBoxLayout(self.advanced_dialog)
         form = QFormLayout()
         self.enabled = QCheckBox("ClipBridge에서 마우스·키보드도 공유")
         self.mode = QComboBox()
         self.mode.addItem("이 컴퓨터의 마우스·키보드 사용 (서버)", "server")
         self.mode.addItem("다른 컴퓨터의 마우스·키보드 받기 (클라이언트)", "client")
         self.name, self.address = QLineEdit(), QLineEdit()
-        self.address.setPlaceholderText("마우스가 연결된 컴퓨터의 LAN / Tailscale IP")
+        self.address.setPlaceholderText("Main PC의 LAN / Tailscale IP 입력")
         self.port = QSpinBox()
         self.port.setRange(1024, 65535)
         self.delay = QSpinBox()
@@ -69,50 +78,128 @@ class InputDialog(QDialog):
         form.addRow("마우스·키보드 엔진", QLabel(edition))
         form.addRow("이 컴퓨터 역할", self.mode)
         form.addRow("이 컴퓨터 이름", self.name)
-        form.addRow("마우스 서버 IP", self.address)
         form.addRow("마우스 포트", self.port)
         form.addRow("화면 전환 지연", self.delay)
         form.addRow("스크롤 배율", self.scale)
         form.addRow(self.invert)
         form.addRow(self.relative)
-        layout.addLayout(form)
-        layout.addWidget(QLabel("화면 카드를 드래그하여 배치하세요. 맞닿은 화면으로 마우스가 넘어갑니다. (서버 설정)"))
+        advanced_layout.addLayout(form)
+        advanced_buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        advanced_buttons.button(QDialogButtonBox.StandardButton.Save).setText("설정 저장")
+        advanced_buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("취소")
+        advanced_buttons.accepted.connect(self.save_advanced)
+        advanced_buttons.rejected.connect(self.advanced_dialog.reject)
+        advanced_layout.addWidget(advanced_buttons)
+        address_row = QHBoxLayout()
+        address_row.addWidget(self.address, 1)
+        self.connect_button = QPushButton("연결 요청")
+        self.connect_button.clicked.connect(self.request_connection)
+        address_row.addWidget(self.connect_button)
+        layout.addLayout(address_row)
+        addresses = owner.device_addresses()
+        ipv4 = [address for address in addresses if ":" not in address]
+        own_ip = QLabel("이 PC 주소: " + (" / ".join((ipv4 or addresses)[:2]) or "LAN 또는 Tailscale 연결을 확인하세요"))
+        own_ip.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        own_ip.setWordWrap(True)
+        layout.addWidget(own_ip)
+        self.status = QLabel(getattr(owner, "input_setup_status", "Main에 승인 요청을 보내면 화면이 자동 등록됩니다."))
+        self.status.setWordWrap(True)
+        layout.addWidget(self.status)
+        layout.addWidget(QLabel("연결된 화면 · 양쪽 PC에서 카드를 옮기면 배치가 함께 바뀝니다."))
         self.scene = QGraphicsScene(self)
         self.preview = QGraphicsView(self.scene)
-        self.preview.setMinimumHeight(215)
+        self.preview.setMinimumHeight(250)
         layout.addWidget(self.preview)
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["컴퓨터 이름", "X (가로)", "Y (세로)"])
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setMinimumHeight(160)
         self.table.cellChanged.connect(lambda row, column: self.refresh_preview())
-        layout.addWidget(self.table)
-        rows = QHBoxLayout()
-        add, remove = QPushButton("화면 추가"), QPushButton("선택 화면 제거")
-        add.clicked.connect(lambda: self.add_screen("Computer", *self.next_position()))
-        remove.clicked.connect(self.remove_screen)
-        rows.addWidget(add)
-        rows.addWidget(remove)
-        layout.addLayout(rows)
-        codes = QHBoxLayout()
-        copy, paste = QPushButton("이 컴퓨터 마우스 연결 코드 복사"), QPushButton("상대 마우스 연결 코드 추가")
-        copy.clicked.connect(self.copy_code)
-        paste.clicked.connect(self.add_code)
-        codes.addWidget(copy)
-        codes.addWidget(paste)
-        layout.addLayout(codes)
+        self.table.setParent(widget)
+        self.table.hide()  # model for the cards; coordinates are never a user form
         self.trust = QLabel()
-        layout.addWidget(self.trust)
-        layout.addWidget(QLabel("Scroll Lock: 화면 이동 잠금/해제. Mac은 입력 권한 허용이 필요할 수 있습니다. Linux는 X11에서 사용하세요."))
+        advanced_layout.insertWidget(1, self.trust)
+        if not embedded:
+            tip = QLabel("Scroll Lock: 화면 이동 잠금/해제. Mac은 입력 권한 허용이 필요할 수 있습니다. Linux는 X11에서 사용하세요.")
+            tip.setWordWrap(True)
+            layout.addWidget(tip)
         scroll.setWidget(widget)
         outer.addWidget(scroll)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-        buttons.button(QDialogButtonBox.StandardButton.Save).setText("저장 및 적용")
-        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("취소")
+        bottom = QHBoxLayout()
+        advanced = QPushButton("고급 설정…")
+        advanced.clicked.connect(self.advanced_dialog.show)
+        if not embedded:
+            bottom.addWidget(advanced)
+        self.disconnect_button = QPushButton("선택 PC 연결 해제")
+        self.disconnect_button.clicked.connect(self.disconnect_selected)
+        bottom.addWidget(self.disconnect_button)
+        outer.addLayout(bottom)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close)
+        buttons.button(QDialogButtonBox.StandardButton.Save).setText("배치 적용")
+        buttons.button(QDialogButtonBox.StandardButton.Close).setText("닫기")
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
-        outer.addWidget(buttons)
+        if embedded:
+            buttons.button(QDialogButtonBox.StandardButton.Close).hide()
+        if not embedded:
+            outer.addWidget(buttons)
         self.load()
+
+    def watch(self, future, enable=True):
+        timer = QTimer(self)
+        def done():
+            if not future.done():
+                return
+            timer.stop()
+            timer.deleteLater()
+            if enable:
+                self.connect_button.setEnabled(True)
+            try:
+                future.result()
+            except Exception as error:
+                self.status.setText(str(error) if isinstance(error, ValueError) else "연결 설정을 적용하지 못했습니다.")
+        timer.timeout.connect(done)
+        timer.start(100)
+
+    def request_connection(self):
+        try:
+            self.connect_button.setEnabled(False)
+            self.watch(self.owner.input_setup.connect_to(self.address.text().strip()), enable=False)
+            self.status.setText("Main에 연결 요청 중…")
+        except Exception as error:
+            self.connect_button.setEnabled(True)
+            self.status.setText(str(error))
+
+    def disconnect_selected(self):
+        selected = self.scene.selectedItems()
+        name = None
+        for item in selected:
+            if isinstance(item, ComputerTile):
+                name = self.table.item(item.row, 0).text()
+                break
+        if self.data.get("easy_controller"):
+            name = self.data["name"]
+        if not name:
+            self.status.setText("연결을 해제할 화면 카드를 먼저 선택하세요.")
+            return
+        if QMessageBox.question(self, "연결 해제", "선택 PC의 마우스·키보드 연결을 해제할까요?") != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.watch(self.owner.input_setup.disconnect(name))
+        except Exception as error:
+            self.status.setText(str(error))
+
+    def save_advanced(self):
+        try:
+            value = self.collect()
+            if value.get("easy_controller"):
+                value["easy_paused"] = not value["enabled"]
+            validate(value)
+            self.owner.apply_input_settings(value, False)
+            self.owner.input_setup.publish()
+            self.advanced_dialog.accept()
+        except Exception as error:
+            QMessageBox.warning(self, "마우스 설정", str(error))
 
     def add_screen(self, name, x, y):
         row = self.table.rowCount()
@@ -148,6 +235,10 @@ class InputDialog(QDialog):
         self.scale.setValue(self.data["scroll_scale"])
         self.invert.setChecked(self.data["invert_scroll"])
         self.relative.setChecked(self.data["relative_mouse"])
+        automatic = bool(self.data.get("easy_controller") or self.data.get("easy_peers"))
+        self.mode.setEnabled(not automatic)
+        self.name.setReadOnly(automatic)
+        self.port.setEnabled(not self.data.get("easy_controller"))
         with QSignalBlocker(self.table):
             self.table.setRowCount(0)
             for screen in self.data["screens"]:
@@ -185,6 +276,8 @@ class InputDialog(QDialog):
                 self.table.item(row, 1).setText(str(x))
                 self.table.item(row, 2).setText(str(y))
         QTimer.singleShot(0, self.refresh_preview)
+        if self.data.get("easy_controller") or self.data.get("easy_peers"):
+            QTimer.singleShot(0, self.save)
 
     def collect(self):
         value = {**self.data, "enabled": self.enabled.isChecked(), "engine": defaults()["engine"],
@@ -224,13 +317,11 @@ class InputDialog(QDialog):
     def save(self):
         try:
             settings = self.collect()
-            validate(settings)
-            self.owner.input_manager.stop()
-            self.owner.config.input_settings = settings
-            self.owner.store.save(self.owner.config)
-            self.owner.input_manager.start()
-            if not settings["enabled"]:
-                self.owner.input_status.setText("마우스·키보드 공유: 꺼짐")
-            self.accept()
+            from .input_setup import layout_settings
+            layout_settings(settings, [{key: item[key] for key in ("name", "x", "y")} for item in settings["screens"]])
+            screens = [{key: item[key] for key in ("name", "x", "y")} for item in settings["screens"]]
+            self.watch(self.owner.input_setup.change_layout(screens, self.data.get("easy_revision", 0)))
         except Exception as error:
-            QMessageBox.warning(self, "마우스 설정", str(error) if isinstance(error, ValueError) else "마우스 설정을 저장하지 못했습니다.")
+            self.status.setText(str(error) if isinstance(error, ValueError) else "화면 배치를 적용하지 못했습니다.")
+            self.data = {**defaults(), **self.owner.config.input_settings}
+            self.load()
