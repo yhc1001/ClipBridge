@@ -245,6 +245,7 @@ def test_unified_window_ip_button_one_approval_and_mouse_toggle_keep_clipboard(q
         for index, name in enumerate(("Main", "newserver")):
             store = ConfigStore(tmp_path / str(index))
             config = store.load()
+            config.direction = "main_to_server"
             config.mouse_enabled = False
             config.bind_ip = "127.0.0.1"
             with socket.socket() as free:
@@ -264,6 +265,8 @@ def test_unified_window_ip_button_one_approval_and_mouse_toggle_keep_clipboard(q
         assert len(main.boxes) == 1 and "클립보드" in main.boxes[0].text()
         main.boxes[0].button(QMessageBox.StandardButton.Yes).click()
         pump(lambda: main.connected and client.connected and client.config.input_settings.get("easy_controller"))
+        assert main.config.direction == client.config.direction == "both"
+        assert main.direction.currentData() == client.direction.currentData() == "both"
         assert main.input_dialog.table.rowCount() == client.input_dialog.table.rowCount() == 2
         assert not main.role.isVisible() and not main.input_dialog.mode.isVisible()
         visible_buttons = [button.text() for button in main.findChildren(QPushButton) if button.isVisible()]

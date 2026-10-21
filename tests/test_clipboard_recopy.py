@@ -18,11 +18,17 @@ def capture(request, monkeypatch, qt_app):
     ledger = Ledger(config.device_id)
     if request.param == "queued":
         from clipbridge.clipboard_macos import ClipboardWorker
+        from PySide6.QtCore import Qt
         worker = ClipboardWorker(config, ledger, local.put, lambda _: None, lambda _: None, board)
+        prepared = []
+        worker.prepared.connect(lambda _: prepared.append(True), Qt.ConnectionType.QueuedConnection)
         def tick():
+            previous, count = worker.capture_future, len(prepared)
             worker.tick()
-            pump(qt_app, lambda: worker.capture_future is None or worker.capture_future.done())
-            qt_app.processEvents()
+            if worker.capture_future is not previous:
+                # Future.done() can precede its queued Qt delivery. Wait until
+                # capture_done has actually run before inspecting its output.
+                pump(qt_app, lambda: len(prepared) > count)
     else:
         from clipbridge import clipboard_win as backend
         worker = backend.ClipboardWorker(config, ledger, local.put, lambda _: None, lambda _: None)
