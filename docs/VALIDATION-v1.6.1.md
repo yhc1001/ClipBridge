@@ -18,7 +18,21 @@
 
 ## OS별 빌드
 
-Windows 일반 EXE/UAC MSI, macOS ARM/Intel, Linux X11의 CI 검증은 진행 중입니다. 완료 후 실행 ID와 결과를 기록합니다.
+세 OS 모두 런타임 소스 `0f37ae2bdc633742b9af509967b625d3f06c8c76`에서 빌드·검증했습니다.
+
+| 플랫폼 | 검사 | 실행 |
+|---|---|---|
+| Windows Server 2022 x64 | 111개 통과 / 2개 OS별 생략 | [39582691416](https://github.com/yhc1001/ClipBridge/actions/runs/39582691416) |
+| macOS 15 ARM / Intel 각각 | 100개 통과 / 8개 OS별 생략 | [39582690345](https://github.com/yhc1001/ClipBridge/actions/runs/39582690345) |
+| Ubuntu 24.04 X11 x64 | 102개 통과 / 8개 OS별 생략 | [39582690740](https://github.com/yhc1001/ClipBridge/actions/runs/39582690740) |
+
+- Windows EXE의 새/기존 설정 시작, 실제 클립보드 감시, 트레이, 종료와 내장 입력 엔진 `--version`/독립 프로필 검사 통과. 로컬 작업 PC에서 실패했던 버전 검사는 기존 Deskflow가 없는 CI에서 통과했습니다.
+- Windows MSI 설치, 등록 사용자 인증, 일반 권한을 모사한 Medium IL·관리자 그룹 비활성 토큰의 실제 서비스 조회, 같은 토큰의 프로세스 메모리 쓰기/종료 권한 거부, 고정 GUI/포트의 사설 방화벽 등록 통과. 별도 표준 사용자 GUI 프로세스를 실행한 검사는 아닙니다.
+- 실제 SYSTEM·UIAccess 입력 엔진의 상호 TLS, SYSTEM/관리자 전용 테스트 데스크톱의 마우스/키 입력, 자식·서비스 강제 종료 후 복구, OS 종료 통지 시 상태 보존, 명시적 중지 상태 보존, MSI 제거 통과. 실제 UAC 승인 창이나 물리 재부팅 검사는 아닙니다.
+- Mac ARM/Intel 패키지의 실제 pasteboard·Keychain·시작/종료·내장 엔진 검사 통과. Linux 패키지의 실제 X11 클립보드·암호화 설정·시작/종료·내장 엔진 검사, 두 Xvfb 화면 간 실제 TLS 마우스/키 입력 통과.
+- 후속 커밋 `e8327be`는 테스트만 변경했습니다. Qt 이벤트가 실제 전달된 뒤 결과를 확인하도록 동기화를 보강하고 GUI에서도 예전 단방향 설정을 양방향으로 바꾸는 것을 검사했습니다. 해당 7개 로컬 검사 통과. 배포 런타임은 CI 소스와 동일합니다.
+
+패키지 SHA-256은 배포본 `SHA256SUMS.txt`에 기록합니다. Mac/Linux 외부 안내 문서는 갱신하지만 검증한 실행 파일 바이트는 보존합니다. MSI 내부 문서는 빌드 시점 스냅샷이며 최신 결과는 GitHub의 이 문서와 JSON 기록에서 확인하세요.
 
 ## 실제 장비 검증 범위
 

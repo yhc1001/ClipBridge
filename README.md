@@ -44,6 +44,6 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-v1.6.1은 반복 복사·세 PC의 모든 방향 전달을 추가 검사합니다. OS별 빌드·검증 결과와 실물 PC에서 확인이 남은 항목은 아래 검증 결과에 구분합니다.
+자동 검사: Windows 111개 · Mac 각 100개 · Linux 102개 통과. 반복 복사·세 PC의 모든 방향 전달을 추가 검사했습니다. 실물 PC에서 확인이 남은 항목은 아래 검증 결과에 구분했습니다.
 
 [검증 결과](docs/VALIDATION-v1.6.1.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)
