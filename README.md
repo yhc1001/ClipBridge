@@ -53,4 +53,6 @@ Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac(macOS 14 �
 
 서로 다른 OS 사이에서도 **파일 내용을 실제 전송**하고, 탐색기·Finder·Linux 파일 관리자에서 붙여넣을 수 있는 목록을 등록합니다. 앱별 실물 기기 붙여넣기·마우스 이동은 별도 확인이 필요합니다. Linux 검증 환경은 Ubuntu 24.04 X11입니다.
 
-[검증 결과](artifacts/) · [여러 대 연결](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [지원 형식](docs/WINDOWS_DETAILS.md) · [개발·빌드](docs/DEVELOPMENT.md)
+[검증 결과](docs/VALIDATION.md) · [여러 대 연결](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [지원 형식](docs/FORMATS.md) · [개발·빌드](docs/DEVELOPMENT.md)
+
+Windows 83개·Linux 79개·Apple 칩/Intel Mac 각각 77개 자동 검사와 각 실행 파일의 시작·종료 검사를 통과했습니다.

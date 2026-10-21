@@ -1,0 +1,82 @@
+{
+  "version": "1.3.0",
+  "date_kst": "2026-10-21",
+  "runtime_source_commit": "514b8936e9c57119535cc581c2e3f770f617b9d2",
+  "windows": {
+    "platform": "Windows 11 x64",
+    "python": "3.13.5",
+    "tests_passed": 83,
+    "os_native_modules_skipped": 2,
+    "packaged_exe_fresh_and_legacy_config_migration_startup_exit": "passed",
+    "packaged_tls_native_text_both_directions": "passed",
+    "packaged_multi_megabyte_text_stream_both_directions": "passed",
+    "packaged_png_dib_dibv5_html_rtf_and_real_file_hdrop": "passed",
+    "packaged_no_echo_and_transfer_cleanup": "passed",
+    "text_receive_one_loopback_sample_ms": 27,
+    "main_update_existing_pairing_two_peers_reconnected": "passed",
+    "main_defaults_256_mib_and_16_gib": "passed",
+    "existing_autostart_path_preserved": "passed"
+  },
+  "linux": {
+    "platform": "Ubuntu 24.04 x86_64; X11 via Xvfb",
+    "python": "3.13.16",
+    "tests_passed": 79,
+    "skipped": 3,
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39540485534",
+    "actual_x11_clipboard_text_html_rtf_file_urls": "passed",
+    "separate_xclip_background_copy": "passed",
+    "aes_gcm_owner_only_key": "passed",
+    "native_build_packaged_startup_and_exit": "passed",
+    "wayland_background_clipboard": "unsupported guarantee; unverified"
+  },
+  "macos": {
+    "platform": "macOS 15",
+    "python": "3.13.15",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "tests_passed_per_architecture": 77,
+    "os_native_modules_skipped": 3,
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39540488440",
+    "native_pasteboard_keychain_app_build_startup_exit": "passed"
+  },
+  "input_integration": {
+    "engine": "separately installed Deskflow 1.27.0",
+    "import_layout_certificate_trust_scroll_modifier_settings": "passed",
+    "safe_generated_native_settings_tls_pins_clipboard_off_commands_off": "passed",
+    "installed_core_private_portable_profile_cli_probe": "passed",
+    "original_profile_unchanged_and_private_session_removed": "passed",
+    "physical_input_hooks_started_during_test": false,
+    "existing_deskflow_preserved": true,
+    "main_input_enabled": false
+  },
+  "capacity": {
+    "default_clipboard_mib": 256,
+    "maximum_clipboard_mib": 512,
+    "default_files_gib": 16,
+    "maximum_files_tib": 1,
+    "maximum_entries": 20000,
+    "chunk_kib": 256,
+    "four_engines_large_text_and_file_formats_relay": "passed",
+    "negotiated_peer_limit_and_insufficient_disk_rejection": "passed",
+    "maximum_capacity_stress": "not verified"
+  },
+  "ui": {
+    "advanced_dialog_separate_scrollable_cancel_restore": "passed",
+    "main_controls_fixed_outside_scroll": "passed",
+    "screen_layout_drag_data_and_overlap_prevention": "passed"
+  },
+  "not_verified": [
+    "Physical cross-OS application-specific paste (Explorer/Finder/GNOME/KDE/Word/Excel/browser/PicPick/Snipping Tool)",
+    "Mouse and keyboard movement between physical computers",
+    "Wayland background clipboard",
+    "Actual logout/login autostart",
+    "Moonlight paste UI",
+    "512 MiB / 1 TiB / 20,000-entry maximum load",
+    "16-client maximum load",
+    "macOS user first-open permissions/Gatekeeper",
+    "Linux distributions other than Ubuntu 24.04"
+  ],
+  "packaging": "Linux archive documentation refreshed locally; CI native binaries unchanged. Windows, macOS and Linux runtime source is the recorded commit."
+}

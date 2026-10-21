@@ -13,3 +13,5 @@
 [사용법](https://github.com/yhc1001/ClipBridge#readme) · [마우스](https://github.com/yhc1001/ClipBridge/blob/main/docs/MOUSE_KEYBOARD.md) · [Linux](https://github.com/yhc1001/ClipBridge/blob/main/docs/LINUX.md) · [검증 기록](https://github.com/yhc1001/ClipBridge/tree/main/artifacts)
 
 실물 Windows↔Mac↔Linux의 앱별 붙여넣기·마우스 이동·로그인 자동 시작은 미검증입니다. 자동 검사와 빌드 결과는 검증 기록에 구분해 남깁니다.
+
+Windows 83개·Linux 79개·Apple 칩/Intel Mac 각각 77개 자동 검사와 각 실행 파일의 빌드·시작·종료 검사가 통과했습니다.
