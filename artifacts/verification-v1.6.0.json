@@ -1,0 +1,65 @@
+{
+  "version": "1.6.0",
+  "date_kst": "2026-10-21",
+  "runtime_source_commit": "4e08571c1bb1e722222b6fb9f6a1a1bad2ce365f",
+  "runtime_sources_identical_since_recorded_commit": true,
+  "windows": {
+    "build_source_commit": "d75e8bb4cc2a7a0c22caec4065d0f77da82dbf4d",
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39555392727",
+    "platform": "Windows Server 2022 x64; Python 3.13.16",
+    "tests_passed": 102,
+    "os_modules_skipped": 2,
+    "general_exe_fresh_legacy_config_native_clipboard_tray_startup_exit": "passed",
+    "bundled_input_version_dependencies_private_profile_cleanup": "passed",
+    "msi_install_owner_sid_authenticated_system_service": "passed",
+    "medium_integrity_admin_group_disabled_owner_actual_scm_pipe_process_path_access": "passed using impersonation token",
+    "same_restricted_token_vm_write_and_process_terminate_handles": "denied as required",
+    "separate_restricted_process_startup": "runner window-station/DLL initialization restriction; replaced with equivalent restricted-token API access checks",
+    "unified_gui_private_firewall_fixed_application_ports_24802_45832": "passed",
+    "native_system_uiaccess_active_console_session_mutual_tls": "passed",
+    "system_admin_only_private_desktop_actual_mouse_keyboard": "passed",
+    "child_crash_and_service_crash_recovery": "passed",
+    "os_shutdown_suspend_preserves_enabled_for_service_restart": "passed; not physical reboot",
+    "explicit_stop_persists_disabled_after_service_restart": "passed",
+    "private_fixed_core_input_port_lan_tailscale_rule_cleanup": "passed",
+    "msi_removal": "passed"
+  },
+  "macos": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39553923197",
+    "platform": "macOS 15 arm64 and x86_64; Python 3.13.15",
+    "tests_passed_each": 94,
+    "os_modules_skipped": 5,
+    "packaged_native_pasteboard_keychain_startup_exit_and_input_probe": "passed"
+  },
+  "linux": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39553926720",
+    "platform": "Ubuntu 24.04 x86_64 X11; Python 3.13.16",
+    "tests_passed": 96,
+    "os_modules_skipped": 5,
+    "native_clipboard_encrypted_settings_packaged_startup_exit_and_input_probe": "passed",
+    "two_private_x11_desktops_actual_native_tls_mouse_transition_keyboard": "passed"
+  },
+  "unified_setup": {
+    "ip_request_one_approval_registers_native_pins_clipboard_per_device_keys_roles_layout": "passed on real loopback TLS",
+    "real_networkengine_bidirectional_text_image_actual_file_bytes_no_second_code_or_approval": "passed",
+    "mouse_off_keeps_clipboard_and_file_sync": "passed",
+    "three_nodes_shared_layout_client_edit_unique_names": "passed",
+    "approval_deny_no_trust_no_reprompt_cancel_on_disconnect": "passed",
+    "remembered_reconnect_key_mismatch_rejection_certificate_bound_signature": "passed",
+    "public_ip_command_field_renamed_or_disconnected_screen_rejection": "passed",
+    "qt_ip_button_one_approval_connected_cards_text_receive_mouse_toggle": "passed; real TLS, clipboard/input/tray replaced",
+    "basic_ui_role_code_port_coordinate_forms": "removed",
+    "layout_authority": "PC approving the request; also the clipboard hub"
+  },
+  "not_verified": [
+    "Actual UAC consent, lock and sign-in screens",
+    "Physical Main/newserver power cycle and login reconnect",
+    "Physical cross-OS input and app-specific paste, DPI and keyboard languages",
+    "PicPick, Snipping Tool, browser, Word, Excel, Explorer, Finder and Linux file manager UI",
+    "Moonlight paste UI",
+    "RDP and concurrent/fast-switch user sessions",
+    "Maximum 512 MiB clipboard, 1 TiB files, 20000 entries and 16 clients",
+    "Secure attention sequence Ctrl+Alt+Del"
+  ],
+  "packaging": "Successful CI executable/app/native bytes preserved. ZIP/TAR external documentation may be refreshed; MSI documentation remains its build snapshot. SHA256SUMS covers final assets. Existing live applications were not replaced or services installed during this development."
+}

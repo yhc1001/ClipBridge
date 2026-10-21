@@ -41,4 +41,6 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
+자동 검사: Windows 102개 · Mac 각 94개 · Linux 96개 통과. 실물 PC·UAC 승인 창·재부팅 등 확인이 남은 항목은 아래 검증 결과에 구분했습니다.
+
 [검증 결과](docs/VALIDATION-v1.6.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)
