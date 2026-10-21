@@ -14,7 +14,9 @@ Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니�
 
 현재 버전의 실제 macOS 테스트 및 Apple 칩/Intel .app 빌드는 [GitHub Actions](https://github.com/yhc1001/ClipBridge/actions/workflows/build-macos.yml)와 [버전별 검증 기록](../artifacts/)에서 확인합니다. 여러 대 연결 검사는 실제 TLS 소켓을 사용하지만 같은 호스트 안에서 수행합니다.
 
-**v1.2.0:** Apple 칩과 Intel에서 각각 60개 검사를 통과했고, 두 .app 모두 빌드·시작·정상 종료가 통과했습니다. [v1.2.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39243272272). 이후 수정은 Windows 클립보드와 Windows 검사·문서에 한정됩니다.
+**v1.2.1:** 파일 자동 수신을 기본값으로 바꾸고, 이전 ‘매번 확인’ 설정을 최초 실행 시 자동 전환합니다. Apple 칩과 Intel 각각 검사 64개와 .app 빌드·시작·종료가 통과했습니다. [v1.2.1 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39536082039).
+
+이전 **v1.2.0:** Apple 칩과 Intel에서 각각 60개 검사를 통과했고, 두 .app 모두 빌드·시작·정상 종료가 통과했습니다. [v1.2.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39243272272).
 
 이전 v1.1.0에서도 macOS 15 Apple 칩과 Intel 각각 검사 47개와 .app 빌드·시작·종료가 통과했습니다. [v1.1.0 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/38369518940)
 

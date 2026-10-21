@@ -1,0 +1,40 @@
+{
+  "version": "1.2.1",
+  "date_kst": "2026-10-21",
+  "runtime_source_commit": "05242bffc547491c38efc08889f6bc0355f55e97",
+  "change": "Automatic file receipt from paired devices by default; one-time migration of old ask setting",
+  "windows": {
+    "platform": "Windows 11 x64",
+    "python": "3.13.5",
+    "tests_passed": 70,
+    "mac_native_module_skipped": 1,
+    "packaged_exe_version": "1.2.1",
+    "packaged_fresh_config_auto_files_listener_tray_exit": "passed",
+    "packaged_legacy_ask_config_migrates_to_allow": "passed",
+    "live_main_automatic_file_setting_saved_and_existing_peers_reconnected": "passed"
+  },
+  "automatic_files": {
+    "four_devices_real_tls_file_transfer_with_all_prompt_callbacks_denied": "passed; no approval callback invoked",
+    "legacy_ask_migrates_to_allow_once": "passed",
+    "explicit_block_and_files_disabled_preserved": "passed",
+    "later_manual_ask_survives_restart": "passed",
+    "pairing_keys_and_ids_preserved": "passed"
+  },
+  "macos": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39536082039",
+    "status": "passed",
+    "platform": "macOS 15",
+    "python": "3.13.15",
+    "architectures": ["arm64", "x86_64"],
+    "tests_passed_per_architecture": 64,
+    "windows_native_modules_skipped": 2,
+    "app_build_startup_native_pasteboard_keychain_exit": "passed"
+  },
+  "not_verified": [
+    "Remote newserver or other peers' settings were not changed directly",
+    "Application-specific paste on separate physical computers in v1.2.1",
+    "Actual logout/login autostart",
+    "16-client load",
+    "macOS user first-open Gatekeeper approval"
+  ]
+}
