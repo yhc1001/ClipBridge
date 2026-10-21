@@ -12,7 +12,7 @@ os.environ["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), sys.base
 
 from PyInstaller.__main__ import run
 
-run(["--noconfirm", "--clean", "--onefile", "--windowed", "--name", "ClipBridge", "--distpath", "dist/v1.2.1",
+run(["--noconfirm", "--clean", "--onefile", "--windowed", "--name", "ClipBridge", "--distpath", "dist/v1.3.0",
      "--icon", "assets/clipbridge.ico", "--version-file", "assets/version_info.txt",
      "--exclude-module", "PySide6.QtWebEngineCore", "--exclude-module", "PySide6.QtWebEngineWidgets",
      "--exclude-module", "PySide6.QtPdf", "--exclude-module", "tkinter", "bootstrap.py"])

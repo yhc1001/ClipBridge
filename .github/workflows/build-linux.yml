@@ -1,0 +1,31 @@
+name: Linux app
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: xcb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Desktop test dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y xvfb xclip libegl1 libopengl0 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0
+      - name: Python dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Native Linux tests
+        run: xvfb-run -a python -m pytest -q --basetemp "${RUNNER_TEMP}/clipbridge-tests"
+      - name: Build app
+        run: python tools/build_linux.py
+      - name: Test packaged app
+        run: xvfb-run -a python tools/linux_app_smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClipBridge-linux-x86_64
+          path: dist/ClipBridge-linux-x86_64.tar.gz
+          if-no-files-found: error

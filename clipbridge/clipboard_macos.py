@@ -119,10 +119,11 @@ def prepare_formats(formats, limit):
 class ClipboardWorker(QObject):
     prepared = Signal(object)
 
-    def __init__(self, config, ledger, on_local, on_applied, on_status, pasteboard=None):
+    def __init__(self, config, ledger, on_local, on_applied, on_status, pasteboard=None, platform_name="macOS"):
         super().__init__()
         self.config, self.ledger = config, ledger
         self.on_local, self.on_applied, self.on_status = on_local, on_applied, on_status
+        self.platform_name = platform_name
         self.board = pasteboard or CocoaPasteboard()
         self.commands = queue.Queue()
         self.ready = threading.Event()
@@ -178,7 +179,7 @@ class ClipboardWorker(QObject):
                     self.pending = (*command, time.monotonic() + 4)
             self.apply_pending()
         except Exception as error:
-            self.on_status("macOS 클립보드 접근 실패 (" + type(error).__name__ + ") · 접근 허용을 확인하세요")
+            self.on_status(self.platform_name + " 클립보드 접근 실패 (" + type(error).__name__ + ") · 접근 허용을 확인하세요")
 
     def capture(self):
         seq = self.board.count()

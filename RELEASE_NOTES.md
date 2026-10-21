@@ -1,14 +1,15 @@
-# ClipBridge v1.2.1 — 파일도 확인 없이 자동 공유
+# ClipBridge v1.3.0 — Linux·마우스 설정·큰 클립보드
 
-연결을 승인한 컴퓨터끼리는 파일·폴더도 확인 창 없이 자동으로 공유합니다. 평소처럼 복사하고 붙여넣으면 됩니다.
+- Linux X11 클립보드와 실제 파일/폴더 전송 추가. Ubuntu 24.04 x86_64 실행 파일 제공.
+- 별도 설치된 Deskflow 1.27+ 엔진을 ClipBridge에서 실행·종료·재시도. 기존 배치·인증·마우스 설정 가져오기와 드래그 배치 창 추가.
+- 기본 클립보드 256MiB, 파일 16GiB. 설정 최대 512MiB / 1TiB, 20,000개 항목. 큰 클립보드·동반 서식도 분할 전송하고 SHA-256 검사.
+- 고급 설정을 스크롤 가능한 별도 창으로 분리. 취소하면 원래 값으로 복구.
+- 파일 자동 수신과 여러 대 연결 유지. 수신 디스크 공간 사전 검사.
 
-- 새 설치의 기본값을 파일 자동 수신으로 변경
-- 기존 ‘매번 확인’ 설정도 업데이트 후 첫 실행에 자동 수신으로 전환
-- 파일 차단·공유 끄기·용량 제한과 장치 연결 승인은 유지
-- 필요하면 고급 설정에서 수동 확인을 다시 선택할 수 있으며 재시작 후에도 유지
+모든 컴퓨터에서 기존 앱을 트레이로 종료하고 새 버전을 실행하세요. 연결 정보는 유지하고 예전 기본 용량은 자동으로 올립니다. 자동 시작을 새 실행 파일에서 다시 저장하세요. 큰 용량은 허브·송신·수신 컴퓨터 모두 올려야 합니다.
 
-**파일을 받는 newserver·다른 PC에서도 기존 앱을 트레이에서 종료하고 새 버전을 한 번 실행하세요.** 기존 연결은 그대로 사용하며 다시 페어링하지 않아도 됩니다. v1.2.0에서 바로 바꾸려면 ‘고급 설정 → 파일 승인 → 신뢰한 PC에서 항상 수신 → 저장 및 연결’을 선택하세요.
+마우스 기능에는 각 컴퓨터의 별도 Deskflow 설치가 필요합니다. 기존 Deskflow에서 정지한 뒤 ClipBridge에서 활성화하세요. 원본 설정은 바꾸지 않습니다. Linux 클립보드 정식 지원은 X11이며 Wayland 백그라운드 동작은 보장하지 않습니다.
 
-[간단한 사용법](https://github.com/yhc1001/ClipBridge#readme) · [버전별 검증 기록](https://github.com/yhc1001/ClipBridge/tree/main/artifacts)
+[사용법](https://github.com/yhc1001/ClipBridge#readme) · [마우스](https://github.com/yhc1001/ClipBridge/blob/main/docs/MOUSE_KEYBOARD.md) · [Linux](https://github.com/yhc1001/ClipBridge/blob/main/docs/LINUX.md) · [검증 기록](https://github.com/yhc1001/ClipBridge/tree/main/artifacts)
 
-Windows 검사 70개, Apple 칩·Intel Mac 각각 64개와 실행 파일 시작·종료 검사가 통과했습니다. [Mac 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39536082039). 서로 다른 실물 컴퓨터에서 앱별 붙여넣기와 실제 재로그인은 미검증입니다.
+실물 Windows↔Mac↔Linux의 앱별 붙여넣기·마우스 이동·로그인 자동 시작은 미검증입니다. 자동 검사와 빌드 결과는 검증 기록에 구분해 남깁니다.

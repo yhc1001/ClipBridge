@@ -28,7 +28,7 @@ run(["--noconfirm", "--clean", "--windowed", "--onedir", "--name", "ClipBridge",
 bundle = root / "dist" / "macos" / "ClipBridge.app"
 info = bundle / "Contents" / "Info.plist"
 value = plistlib.loads(info.read_bytes())
-value.update({"CFBundleShortVersionString": "1.2.1", "CFBundleVersion": "1.2.1", "LSUIElement": True,
+value.update({"CFBundleShortVersionString": "1.3.0", "CFBundleVersion": "1.3.0", "LSUIElement": True,
               "NSPasteboardUsageDescription": "복사한 내용을 연결한 컴퓨터와 공유합니다."})
 info.write_bytes(plistlib.dumps(value))
 subprocess.run(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", str(bundle)], check=True)

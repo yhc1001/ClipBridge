@@ -18,7 +18,7 @@ $taskAddress.ToString()
 }
 if (!$ExePath) {
     $ExePath = Join-Path $PSScriptRoot 'ClipBridge.exe'
-    if (!(Test-Path -LiteralPath $ExePath)) { $ExePath = Join-Path $PSScriptRoot 'dist\v1.2.1\ClipBridge.exe' }
+    if (!(Test-Path -LiteralPath $ExePath)) { $ExePath = Join-Path $PSScriptRoot 'dist\v1.3.0\ClipBridge.exe' }
 }
 $taskExe = (Resolve-Path -LiteralPath $ExePath).Path
 $taskRule = 'ClipBridge-v1-Private'

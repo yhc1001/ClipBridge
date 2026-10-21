@@ -20,6 +20,8 @@ def app_directory() -> Path:
         return Path(os.environ["LOCALAPPDATA"]) / "ClipBridge"
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "ClipBridge"
+    if sys.platform.startswith("linux"):
+        return Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "ClipBridge"
     raise RuntimeError("Unsupported operating system")
 
 
@@ -45,8 +47,10 @@ class Config:
     direction: str = "both"
     paused: bool = False
     autostart: bool = False
-    clip_limit_mb: int = 96
-    file_limit_mb: int = 512
+    clip_limit_mb: int = 256
+    file_limit_mb: int = 16384
+    limits_version: int = 1
+    input_settings: dict = field(default_factory=dict)
 
     @property
     def secret(self):
@@ -76,7 +80,7 @@ class Config:
             valid_id(device)
         if self.role not in ("main", "server") or self.direction not in ("both", "main_to_server") or self.file_policy not in ("ask", "allow", "block"):
             raise ValueError("설정 값이 올바르지 않습니다.")
-        if not 1024 <= self.port <= 65535 or not 1 <= self.clip_limit_mb <= MAX_CLIP // 1024**2 or not 1 <= self.file_limit_mb <= 1024:
+        if not 1024 <= self.port <= 65535 or not 1 <= self.clip_limit_mb <= MAX_CLIP // 1024**2 or not 1 <= self.file_limit_mb <= MAX_TOTAL // 1024**2:
             raise ValueError("포트 또는 용량 범위를 확인하세요.")
         private_address(self.bind_ip, bind=True)
         if connection:
@@ -105,7 +109,7 @@ class ConfigStore:
     def __init__(self, directory: Path | None = None):
         self.directory = directory or app_directory()
         self.directory.mkdir(parents=True, exist_ok=True)
-        if sys.platform == "darwin":
+        if sys.platform != "win32":
             self.directory.chmod(0o700)
         self.path = self.directory / "settings.json"
         self.lock = threading.RLock()
@@ -124,6 +128,12 @@ class ConfigStore:
                 if config.file_policy == "ask":
                     config.file_policy = "allow"
                 changed = True
+            if "limits_version" not in value:
+                if config.clip_limit_mb == 96:
+                    config.clip_limit_mb = 256
+                if config.file_limit_mb == 512:
+                    config.file_limit_mb = 16384
+                changed = True
             if changed:
                 self.save(config)
             return config
@@ -139,11 +149,14 @@ class ConfigStore:
             temporary = self.path.with_suffix(".tmp")
             temporary.write_text(json.dumps(asdict(config), ensure_ascii=False, indent=2), encoding="utf-8")
             os.replace(temporary, self.path)
-            if sys.platform == "darwin":
+            if sys.platform != "win32":
                 self.path.chmod(0o600)
 
 
 def set_autostart(enabled: bool):
+    if sys.platform.startswith("linux"):
+        from .linux_startup import set_autostart as linux_autostart
+        return linux_autostart(enabled)
     if sys.platform == "darwin":
         from .macos_startup import set_autostart as mac_autostart
         return mac_autostart(enabled)

@@ -6,3 +6,4 @@ Pillow>=11,<13
 cryptography>=50,<51
 pyinstaller>=6.12,<7
 pytest>=8,<10
+psutil>=6,<8

@@ -5,5 +5,7 @@ if sys.platform == "win32":
     from .clipboard_win import ClipboardWorker, sequence, raw_data, gdi32
 elif sys.platform == "darwin":
     from .clipboard_macos import ClipboardWorker, sequence
+elif sys.platform.startswith("linux"):
+    from .clipboard_linux import ClipboardWorker, sequence
 else:
-    raise RuntimeError("ClipBridge는 Windows와 macOS에서 실행할 수 있습니다.")
+    raise RuntimeError("ClipBridge는 Windows, macOS, Linux에서 실행할 수 있습니다.")

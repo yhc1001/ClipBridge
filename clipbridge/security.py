@@ -26,6 +26,9 @@ def protect(data: bytes) -> str:
     if sys.platform == "darwin":
         from .macos_security import protect as mac_protect
         return mac_protect(data)
+    if sys.platform.startswith("linux"):
+        from .linux_security import protect as linux_protect
+        return linux_protect(data)
     raise RuntimeError("Unsupported operating system")
 
 
@@ -36,6 +39,9 @@ def unprotect(data: str) -> bytes:
     if sys.platform == "darwin":
         from .macos_security import unprotect as mac_unprotect
         return mac_unprotect(data)
+    if sys.platform.startswith("linux"):
+        from .linux_security import unprotect as linux_unprotect
+        return linux_unprotect(data)
     raise RuntimeError("Unsupported operating system")
 
 

@@ -9,10 +9,10 @@ import threading
 import uuid
 from dataclasses import dataclass, field
 
-MAX_CLIP = 128 * 1024 * 1024
+MAX_CLIP = 512 * 1024 * 1024
 MAX_FRAME = 180 * 1024 * 1024
-MAX_FILES = 2000
-MAX_TOTAL = 1024 * 1024 * 1024
+MAX_FILES = 20000
+MAX_TOTAL = 1024 * 1024 * 1024 * 1024
 CHUNK = 256 * 1024
 FORMATS = {"text", "PNG", "DIB", "DIBV5", "HTML Format", "Rich Text Format", "Rich Text Format Without Objects", "Sylk", "DIF"}
 TEXT_FORMATS = {"text", "HTML Format", "Rich Text Format", "Rich Text Format Without Objects", "Sylk", "DIF"}

@@ -1,4 +1,4 @@
-"""Run native macOS builds and download their artifacts without leaking credentials."""
+"""Run native builds and download their artifacts without leaking credentials."""
 import argparse
 import io
 import json
@@ -38,14 +38,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("dispatch", "status", "logs", "download", "cancel"))
     parser.add_argument("--run", type=int)
+    parser.add_argument("--workflow", choices=("macos", "linux"), default="macos")
     args = parser.parse_args()
     token = github_token()
     if args.action == "dispatch":
-        github_request(token, PREFIX + "/actions/workflows/build-macos.yml/dispatches", "POST", {"ref": "main"})
-        print("Native macOS workflow dispatched")
+        github_request(token, PREFIX + f"/actions/workflows/build-{args.workflow}.yml/dispatches", "POST", {"ref": "main"})
+        print("Native " + args.workflow + " workflow dispatched")
         return
     if not args.run:
-        runs = github_request(token, PREFIX + "/actions/workflows/build-macos.yml/runs?per_page=3")
+        runs = github_request(token, PREFIX + f"/actions/workflows/build-{args.workflow}.yml/runs?per_page=3")
         print(json.dumps([{k: run[k] for k in ("id", "status", "conclusion", "html_url", "head_sha")} for run in runs["workflow_runs"]]))
         return
     run = github_request(token, PREFIX + f"/actions/runs/{args.run}")
@@ -77,13 +78,13 @@ def main():
         if run["conclusion"] != "success":
             raise RuntimeError("Only completed successful builds can be downloaded")
         artifacts = github_request(token, PREFIX + f"/actions/runs/{args.run}/artifacts")
-        root = Path(__file__).resolve().parents[1] / "dist" / "v1.2.1"
+        root = Path(__file__).resolve().parents[1] / "dist" / "v1.3.0"
         root.mkdir(parents=True, exist_ok=True)
         for artifact in artifacts["artifacts"]:
             data = download(token, PREFIX + f"/actions/artifacts/{artifact['id']}/zip")
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 for name in archive.namelist():
-                    if name in ("ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip"):
+                    if name in ("ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz"):
                         (root / name).write_bytes(archive.read(name))
                         print("Downloaded " + name)
 

@@ -14,6 +14,8 @@ from clipbridge.clipboard import ClipboardWorker, raw_data, sequence
 from clipbridge.config import Config
 from clipbridge.images import image_formats
 from clipbridge.model import Ledger, Snapshot, Stamp
+from clipbridge.model import FORMATS
+from clipbridge.clipboard_win import MARKER
 
 
 def wait_for(predicate, timeout=5):
@@ -70,7 +72,8 @@ def native():
     try:
         fmt = cb.EnumClipboardFormats(0)
         while fmt:
-            if fmt in (13, 15, 8, 17) or fmt >= 0xC000:
+            registered = fmt >= 0xC000 and cb.GetClipboardFormatName(fmt) in (FORMATS | {MARKER, "CanIncludeInClipboardHistory", "CanUploadToCloudClipboard", "Preferred DropEffect"})
+            if fmt in (13, 15, 8, 17) or registered:
                 try:
                     saved[fmt] = raw_data(fmt, 128 * 1024**2)
                 except Exception:

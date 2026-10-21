@@ -111,6 +111,8 @@ def validate_manifest(value, limit):
 class ReceiveTransfer:
     def __init__(self, parent: Path, transfer_id: str, manifest: dict):
         valid_id(transfer_id)
+        if manifest["total"] > shutil.disk_usage(parent).free:
+            raise ValueError("파일을 받을 임시 저장 공간이 부족합니다.")
         self.directory = parent / transfer_id
         self.directory.mkdir(exist_ok=False)
         self.manifest = manifest

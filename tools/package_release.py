@@ -15,7 +15,7 @@ dist.mkdir(parents=True, exist_ok=True)
 licenses = root / "licenses"
 licenses.mkdir(exist_ok=True)
 components = []
-for name in ("PySide6", "PySide6_Essentials", "shiboken6", "pywin32", "Pillow", "cryptography", "pyinstaller"):
+for name in ("PySide6", "PySide6_Essentials", "shiboken6", "pywin32", "Pillow", "cryptography", "pyinstaller", "psutil"):
     package = metadata.distribution(name)
     components.append({"name": name, "version": package.version, "license": package.metadata.get("License-Expression") or package.metadata.get("License")})
     for entry in package.files or []:
@@ -49,7 +49,7 @@ with zipfile.ZipFile(dist / "ClipBridge-portable.zip", "w", compression=zipfile.
     for path in (root / "artifacts").glob("*.json"):
         archive.write(path, str(path.relative_to(root)))
 with (dist / "SHA256SUMS.txt").open("w", encoding="ascii") as output:
-    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip"):
+    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz"):
         if not (dist / name).exists():
             continue
         digest = hashlib.sha256((dist / name).read_bytes()).hexdigest()

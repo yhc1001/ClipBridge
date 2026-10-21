@@ -10,15 +10,16 @@ from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtNetwork import QNetworkInterface
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
                              QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QMainWindow, QMenu, QMessageBox,
-                             QPushButton, QSpinBox, QSystemTrayIcon, QVBoxLayout, QWidget)
+                             QPushButton, QScrollArea, QSpinBox, QSystemTrayIcon, QVBoxLayout, QWidget)
 
 from .config import ConfigStore, set_autostart
 from . import __version__
 from .clipboard import ClipboardWorker
 from .files import TransferStore
-from .model import FORMATS, Ledger, private_address
+from .model import FORMATS, MAX_CLIP, MAX_TOTAL, Ledger, private_address
 from .network import NetworkEngine
 from .security import fingerprint, pairing_token, parse_pairing, protect
+from .input_engine import InputManager
 
 
 class Events(QObject):
@@ -60,15 +61,17 @@ class Window(QMainWindow):
         self.online_devices = set()
         self.closing = False
         self.boxes = []
+        self.input_manager = InputManager(config, store.directory, self.events.notification.emit, self)
         self.setWindowTitle(f"ClipBridge {__version__} · 클립보드 연결")
         self.setWindowIcon(app_icon())
-        self.resize(520, 450)
+        self.resize(560, 740)
         self.clipboard = ClipboardWorker(config, self.ledger, self.local_copy, self.applied,
                                          lambda value: self.events.notification.emit("status", value))
         self.build_ui()
         self.build_tray()
         self.clipboard.start()
         QTimer.singleShot(0, self.reconnect)
+        QTimer.singleShot(0, self.input_manager.start)
 
     def build_ui(self):
         widget = QWidget()
@@ -83,6 +86,9 @@ class Window(QMainWindow):
         layout.addWidget(self.connection)
         layout.addWidget(self.status)
         layout.addWidget(self.last)
+        self.input_status = QLabel("마우스·키보드 공유: 꺼짐 · 기존 Deskflow는 그대로 사용 가능")
+        self.input_status.setWordWrap(True)
+        layout.addWidget(self.input_status)
         group = QGroupBox("처음 한 번만 연결하세요")
         form = QFormLayout(group)
         self.role = QComboBox()
@@ -135,13 +141,18 @@ class Window(QMainWindow):
             self.file_policy.addItem(label, value)
         self.file_policy.setCurrentIndex(self.file_policy.findData(self.config.file_policy))
         self.clip_limit, self.file_limit = QSpinBox(), QSpinBox()
-        self.clip_limit.setRange(1, 128)
-        self.file_limit.setRange(1, 1024)
+        self.clip_limit.setRange(1, MAX_CLIP // 1024**2)
+        self.file_limit.setRange(1, MAX_TOTAL // 1024**2)
         self.clip_limit.setValue(self.config.clip_limit_mb)
         self.file_limit.setValue(self.config.file_limit_mb)
         layout.addWidget(options)
-        advanced_toggle = QPushButton("고급 설정 보기")
-        advanced_toggle.setCheckable(True)
+        advanced_toggle = QPushButton("고급 설정…")
+        self.advanced_dialog = QDialog(self)
+        self.advanced_dialog.setWindowTitle("ClipBridge · 고급 설정")
+        self.advanced_dialog.resize(560, 480)
+        advanced_layout = QVBoxLayout(self.advanced_dialog)
+        advanced_scroll = QScrollArea()
+        advanced_scroll.setWidgetResizable(True)
         advanced = QGroupBox("고급 설정")
         advanced_form = QFormLayout(advanced)
         advanced_form.addRow("연결 포트 (양쪽 동일)", self.port)
@@ -153,11 +164,20 @@ class Window(QMainWindow):
         reset = QPushButton("등록한 컴퓨터 연결 초기화")
         reset.clicked.connect(self.reset_pair)
         advanced_form.addRow(reset)
-        advanced.hide()
-        advanced_toggle.toggled.connect(advanced.setVisible)
-        advanced_toggle.toggled.connect(lambda checked: advanced_toggle.setText("고급 설정 접기" if checked else "고급 설정 보기"))
+        advanced_scroll.setWidget(advanced)
+        advanced_layout.addWidget(advanced_scroll)
+        advanced_buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        advanced_buttons.button(QDialogButtonBox.StandardButton.Save).setText("저장 및 연결")
+        advanced_buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("취소")
+        advanced_buttons.accepted.connect(self.save_advanced)
+        advanced_buttons.rejected.connect(self.advanced_dialog.reject)
+        self.advanced_dialog.rejected.connect(self.load_advanced)
+        advanced_layout.addWidget(advanced_buttons)
+        advanced_toggle.clicked.connect(self.show_advanced)
         layout.addWidget(advanced_toggle)
-        layout.addWidget(advanced)
+        input_setup = QPushButton("마우스·키보드 / 화면 배치…")
+        input_setup.clicked.connect(self.show_input_settings)
+        layout.addWidget(input_setup)
         actions = QHBoxLayout()
         save, reconnect, self.pause = QPushButton("저장 및 연결"), QPushButton("재연결"), QPushButton("재개" if self.config.paused else "일시 중지")
         save.clicked.connect(self.save_settings)
@@ -169,15 +189,47 @@ class Window(QMainWindow):
         note = QLabel("연결되면 평소처럼 복사하고 붙여넣으세요.\n창을 닫아도 " + ("메뉴 막대" if sys.platform == "darwin" else "트레이") + "에서 계속 실행됩니다.")
         note.setWordWrap(True)
         layout.addWidget(note)
-        self.setCentralWidget(widget)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(widget)
+        self.setCentralWidget(scroll)
         self.role.currentIndexChanged.connect(self.role_view)
         self.role_view()
+
+    def load_advanced(self):
+        self.port.setValue(self.config.port)
+        self.bind.setText(self.config.bind_ip)
+        self.direction.setCurrentIndex(self.direction.findData(self.config.direction))
+        self.file_policy.setCurrentIndex(self.file_policy.findData(self.config.file_policy))
+        self.clip_limit.setValue(self.config.clip_limit_mb)
+        self.file_limit.setValue(self.config.file_limit_mb)
+
+    def show_advanced(self):
+        self.load_advanced()
+        self.advanced_dialog.show()
+        self.advanced_dialog.raise_()
+        self.advanced_dialog.activateWindow()
+
+    def save_advanced(self):
+        if self.save_settings():
+            self.advanced_dialog.accept()
 
     def role_view(self):
         hub = self.role.currentData() == "main"
         self.peer.setEnabled(not hub)
         self.peer.setPlaceholderText("허브에서는 입력하지 않아도 됩니다" if hub else "허브(newserver)의 LAN 또는 Tailscale IP")
         self.devices_group.setVisible(hub)
+
+    def show_input_settings(self):
+        from .input_ui import InputDialog
+        if not getattr(self, "input_dialog", None):
+            self.input_dialog = InputDialog(self)
+        else:
+            self.input_dialog.data = {**self.input_dialog.data, **self.config.input_settings}
+            self.input_dialog.load()
+        self.input_dialog.show()
+        self.input_dialog.raise_()
+        self.input_dialog.activateWindow()
 
     def refresh_devices(self):
         self.devices.clear()
@@ -254,8 +306,10 @@ class Window(QMainWindow):
             self.update_pair_state()
             self.refresh_devices()
             self.reconnect()
+            return True
         except Exception as error:
             QMessageBox.warning(self, "설정 확인", str(error) if isinstance(error, ValueError) else "설정을 저장하지 못했습니다. 사용자 권한과 AppData를 확인하세요.")
+            return False
 
     def copy_code(self):
         if self.config.role != "main":
@@ -341,6 +395,9 @@ class Window(QMainWindow):
     def notification(self, kind, info):
         if self.closing:
             return
+        if kind == "input_status":
+            self.input_status.setText(str(info))
+            return
         if kind == "connected":
             self.connected = int(info)
             self.update_connection()
@@ -411,6 +468,7 @@ class Window(QMainWindow):
         if self.closing:
             return
         self.closing = True
+        self.input_manager.stop()
         for box in list(self.boxes):
             box.reject()
         self.stop_network()

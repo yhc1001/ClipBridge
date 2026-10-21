@@ -33,5 +33,10 @@
     "name": "pyinstaller",
     "version": "6.22.3",
     "license": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)"
+  },
+  {
+    "name": "psutil",
+    "version": "7.2.2",
+    "license": "BSD-3-Clause"
   }
 ]
