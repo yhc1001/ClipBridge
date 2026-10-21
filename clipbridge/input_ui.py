@@ -46,17 +46,11 @@ class InputDialog(QDialog):
         scroll.setWidgetResizable(True)
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        note = QLabel("마우스를 화면 가장자리로 옮겨 다른 컴퓨터로 넘어갑니다.\n마우스·키보드는 설치된 Deskflow 엔진, 클립보드·파일은 ClipBridge가 담당합니다.\n기존 Deskflow의 ‘시작/정지’에서 정지한 뒤 이 기능을 켜세요.")
+        note = QLabel("마우스를 화면 가장자리로 옮겨 다른 컴퓨터로 넘어갑니다.\nClipBridge에 마우스·키보드 엔진이 들어 있어 별도 설치가 필요 없습니다.\n기존 Deskflow를 사용 중이면 정지한 뒤 켜세요. 없는 컴퓨터는 바로 설정하면 됩니다.")
         note.setWordWrap(True)
         layout.addWidget(note)
         form = QFormLayout()
         self.enabled = QCheckBox("ClipBridge에서 마우스·키보드도 공유")
-        self.engine = QLineEdit()
-        browse = QPushButton("찾기")
-        browse.clicked.connect(self.browse)
-        path = QHBoxLayout()
-        path.addWidget(self.engine)
-        path.addWidget(browse)
         self.mode = QComboBox()
         self.mode.addItem("이 컴퓨터의 마우스·키보드 사용 (서버)", "server")
         self.mode.addItem("다른 컴퓨터의 마우스·키보드 받기 (클라이언트)", "client")
@@ -73,7 +67,7 @@ class InputDialog(QDialog):
         self.invert = QCheckBox("스크롤 방향 반대로")
         self.relative = QCheckBox("상대 좌표 마우스 이동")
         form.addRow(self.enabled)
-        form.addRow("Deskflow 엔진", path)
+        form.addRow("마우스·키보드 엔진", QLabel("내장 · 별도 설치 필요 없음"))
         form.addRow("이 컴퓨터 역할", self.mode)
         form.addRow("이 컴퓨터 이름", self.name)
         form.addRow("마우스 서버 IP", self.address)
@@ -150,7 +144,6 @@ class InputDialog(QDialog):
 
     def load(self):
         self.enabled.setChecked(self.data["enabled"])
-        self.engine.setText(self.data["engine"])
         self.mode.setCurrentIndex(self.mode.findData(self.data["mode"]))
         self.name.setText(self.data["name"])
         self.address.setText(self.data["server_ip"])
@@ -198,7 +191,7 @@ class InputDialog(QDialog):
         QTimer.singleShot(0, self.refresh_preview)
 
     def collect(self):
-        value = {**self.data, "enabled": self.enabled.isChecked(), "engine": self.engine.text().strip(),
+        value = {**self.data, "enabled": self.enabled.isChecked(), "engine": defaults()["engine"],
             "mode": self.mode.currentData(), "name": self.name.text().strip(), "server_ip": self.address.text().strip(),
             "port": self.port.value(), "switch_delay": self.delay.value(), "scroll_scale": self.scale.value(),
             "invert_scroll": self.invert.isChecked(), "relative_mouse": self.relative.isChecked()}
@@ -209,11 +202,6 @@ class InputDialog(QDialog):
             if previous.get(screen["name"].casefold()):
                 screen["options"] = previous[screen["name"].casefold()]
         return value
-
-    def browse(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Deskflow 엔진 선택", self.engine.text())
-        if path:
-            self.engine.setText(path)
 
     def import_existing(self):
         path = default_profile()

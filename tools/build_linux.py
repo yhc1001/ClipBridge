@@ -11,9 +11,12 @@ if not sys.platform.startswith("linux"):
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
 from PyInstaller.__main__ import run
+from prepare_input_bundle import prepare
+input_component = prepare()
 run(["--noconfirm", "--clean", "--onedir", "--windowed", "--name", "ClipBridge", "--distpath", "dist/linux",
     "--exclude-module", "PySide6.QtWebEngineCore", "--exclude-module", "PySide6.QtPdf", "--exclude-module", "tkinter", "bootstrap.py"])
 directory = root / "dist" / "linux" / "ClipBridge"
+shutil.copytree(input_component, directory / "_internal" / "input-engine", symlinks=True)
 shutil.copyfile(root / "README.md", directory / "README.md")
 shutil.copytree(root / "docs", directory / "docs", dirs_exist_ok=True)
 shutil.copytree(root / "licenses", directory / "licenses", dirs_exist_ok=True)

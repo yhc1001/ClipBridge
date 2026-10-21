@@ -68,7 +68,7 @@ try:
         store.save(local)
         device = Device(peer, base / "peer")
         device.start()
-        process = subprocess.Popen([str(root / "dist" / "v1.3.0" / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=25"], env=dict(os.environ, LOCALAPPDATA=str(base), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4())))
+        process = subprocess.Popen([str(root / "dist" / "v1.4.0" / "ClipBridge.exe"), "--background", "--smoke-test", "--smoke-seconds=25"], env=dict(os.environ, LOCALAPPDATA=str(base), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4())))
         try:
             wait_for(lambda: device.connected, 15)
             start = time.perf_counter()

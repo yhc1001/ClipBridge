@@ -16,4 +16,4 @@ Upstream sources:
 
 The individual third-party licenses apply to their respective components.
 
-Optional mouse/keyboard sharing invokes a separately installed Deskflow 1.27+ core through its public CLI/settings interface. ClipBridge does not redistribute or incorporate Deskflow source code or its binaries. Deskflow is distributed under its own GPL-2.0-only license with an OpenSSL exception; its license and source are available at https://github.com/deskflow/deskflow. psutil source: https://github.com/giampaolo/psutil.
+The distribution contains the Deskflow 1.27.0 input core and its shared runtime libraries. Deskflow is GPL-2.0-only WITH LicenseRef-OpenSSL-Exception. Original license/exception texts accompany each bundled input runtime. Corresponding engine source, documented Linux build patch and rebuild scripts accompany the release as ClipBridge-input-sources.zip. See docs/INPUT_COMPONENT.md and assets/input-engine-lock.json for provenance and SHA-256 pins. Deskflow GUI/services are never installed by ClipBridge. Qt shared libraries remain replaceable/rebuildable under their applicable licenses. psutil source: https://github.com/giampaolo/psutil.

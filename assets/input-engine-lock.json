@@ -1,0 +1,19 @@
+{
+  "version": "1.27.0",
+  "source": {
+    "url": "https://codeload.github.com/deskflow/deskflow/tar.gz/refs/tags/v1.27.0",
+    "sha256": "dfe4327f5d0631ead9bacee743a96ee58024af11b5cc080af89b4c740b18e893"
+  },
+  "windows-x64": {
+    "url": "https://github.com/deskflow/deskflow/releases/download/v1.27.0/deskflow-1.27.0-win-x64-portable.zip",
+    "sha256": "8d19004cc3625623489d96580c1b58fd13ee78185689907fd4478595f93fab9a"
+  },
+  "macos-arm64": {
+    "url": "https://github.com/deskflow/deskflow/releases/download/v1.27.0/deskflow-1.27.0-macos-arm64.dmg",
+    "sha256": "dd21e79e566314394214906d3338c505d337af536fc580c022ee3fadffad0c97"
+  },
+  "macos-x86_64": {
+    "url": "https://github.com/deskflow/deskflow/releases/download/v1.27.0/deskflow-1.27.0-macos-x86_64.dmg",
+    "sha256": "8aca3c77a1b16b9a3d6b8a380e5e38a0e6abf6d241bb32dcf3cf8b67abbff5d8"
+  }
+}

@@ -26,6 +26,10 @@ def main():
     try:
         store = ConfigStore(Path(os.environ["CLIPBRIDGE_TEST_DATA"]) if smoke and os.environ.get("CLIPBRIDGE_TEST_DATA") else None)
         config = store.load()
+        if smoke and "--input-probe" in sys.argv:
+            from clipbridge.input_probe import probe
+            probe(config, store.directory)
+            return 0
         if config.autostart:
             set_autostart(True)
         window = Window(store, config)

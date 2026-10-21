@@ -122,6 +122,9 @@ class ConfigStore:
             if len(config.secret) != 32:
                 raise ValueError("DPAPI secret error")
             changed = config.migrate_trust()
+            if config.input_settings.get("certificate"):
+                from .input_engine import migrate_identity
+                changed = migrate_identity(config.input_settings) or changed
             if "file_policy_version" not in value:
                 # Upgrade the old confirmation default once. Later explicit
                 # manual approval/block choices remain unchanged on restart.

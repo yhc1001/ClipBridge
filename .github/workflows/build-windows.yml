@@ -1,0 +1,36 @@
+name: Windows standalone app
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Python dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify no Deskflow installation
+        run: |
+          if (Test-Path 'C:\Program Files\Deskflow') { throw 'Runner must not have Deskflow installed' }
+      - name: Prepare built-in input engine
+        run: python tools/prepare_input_bundle.py
+      - name: Native Windows tests
+        run: python -m pytest -q
+      - name: Build app
+        run: python tools/build_exe.py
+      - name: Test packaged app
+        run: python tools/exe_smoke.py
+      - name: Test packaged built-in input
+        run: python tools/bundled_input_smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClipBridge-win-x64
+          path: dist/v1.4.0/ClipBridge.exe
+          if-no-files-found: error

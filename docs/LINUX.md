@@ -11,7 +11,7 @@ Ubuntu 24.04 x86_64의 **X11 데스크톱**을 기준으로 구현했습니다. 
 
 **Wayland:** Qt의 일반 클립보드 API만 사용하므로 포커스가 없는 앱의 복사 감지·클립보드 쓰기를 보장하지 않습니다. 이번 버전의 정식 클립보드 지원 범위는 X11입니다. 로그인 화면에서 Xorg/X11 세션을 선택하세요. Deskflow의 Wayland 마우스 지원과 ClipBridge의 클립보드 지원 범위는 다릅니다.
 
-마우스·키보드는 해당 배포판에서 실행 가능한 **Deskflow 1.27 이상 native `deskflow-core`**를 설치하고 [마우스 설정](MOUSE_KEYBOARD.md)을 따릅니다. Flatpak 실행 래퍼는 이 버전에서 지원하지 않습니다. 엔진 파일을 ‘찾기’로 지정할 수 있습니다.
+마우스·키보드 엔진도 ClipBridge 배포본에 포함합니다. **Deskflow 별도 설치·Flatpak 래퍼는 필요 없습니다.** Ubuntu 24.04 X11용으로 빌드한 내장 엔진을 사용합니다. [마우스 설정](MOUSE_KEYBOARD.md)을 따릅니다.
 
 자동 검사는 Xvfb의 실제 X11 클립보드, 별도 xclip 프로세스의 복사 감지, MIME/파일 URL 변환, 파일 바이트·TLS 전송, 설정 암호화와 패키지 시작·종료를 검사합니다. 배포판별 파일 관리자 UI·실물 Windows↔Linux↔Mac 붙여넣기·실제 재로그인·Wayland는 미검증입니다. [빌드 기록](https://github.com/yhc1001/ClipBridge/actions/workflows/build-linux.yml)
 

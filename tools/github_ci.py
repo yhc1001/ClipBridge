@@ -38,7 +38,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("dispatch", "status", "logs", "download", "cancel"))
     parser.add_argument("--run", type=int)
-    parser.add_argument("--workflow", choices=("macos", "linux"), default="macos")
+    parser.add_argument("--workflow", choices=("macos", "linux", "windows"), default="macos")
     args = parser.parse_args()
     token = github_token()
     if args.action == "dispatch":
@@ -78,13 +78,13 @@ def main():
         if run["conclusion"] != "success":
             raise RuntimeError("Only completed successful builds can be downloaded")
         artifacts = github_request(token, PREFIX + f"/actions/runs/{args.run}/artifacts")
-        root = Path(__file__).resolve().parents[1] / "dist" / "v1.3.0"
+        root = Path(__file__).resolve().parents[1] / "dist" / "v1.4.0"
         root.mkdir(parents=True, exist_ok=True)
         for artifact in artifacts["artifacts"]:
             data = download(token, PREFIX + f"/actions/artifacts/{artifact['id']}/zip")
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 for name in archive.namelist():
-                    if name in ("ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz"):
+                    if name in ("ClipBridge.exe", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz"):
                         (root / name).write_bytes(archive.read(name))
                         print("Downloaded " + name)
 

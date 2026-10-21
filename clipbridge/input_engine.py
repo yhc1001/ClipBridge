@@ -1,8 +1,4 @@
-"""Manage an installed Deskflow core through its public settings interface.
-
-No Deskflow source/binary is distributed with ClipBridge. Existing profiles are
-read-only; generated portable profiles cannot execute enter/exit commands.
-"""
+"""Manage the bundled input core; no installed Deskflow is required."""
 import base64
 from contextlib import contextmanager
 import hashlib
@@ -20,7 +16,8 @@ from cryptography.hazmat.primitives import serialization
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QSettings, QTimer
 
 from .model import canonical, private_address
-from .security import fingerprint, unprotect
+from .security import fingerprint, protect, unprotect
+from .input_bundle import bundled_engine, bundle_directory
 
 SCREEN_BOOLEANS = {"halfDuplexCapsLock", "halfDuplexNumLock", "halfDuplexScrollLock", "switchCornerTopLeft", "switchCornerTopRight",
     "switchCornerBottomLeft", "switchCornerBottomRight", "weakX11Focus", "xtestIsXineramaUnaware"}
@@ -50,19 +47,14 @@ def computer_name(value):
 
 
 def find_engine():
-    candidates = [shutil.which("deskflow-core")]
-    if sys.platform == "win32":
-        candidates += [str(Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Deskflow" / "deskflow-core.exe")]
-    elif sys.platform == "darwin":
-        candidates += ["/Applications/Deskflow.app/Contents/MacOS/deskflow-core", "/opt/homebrew/bin/deskflow-core", "/usr/local/bin/deskflow-core"]
-    return next((str(Path(value).absolute()) for value in candidates if value and Path(value).is_file()), "")
+    return bundled_engine()
 
 
 def defaults():
     name = re.sub(r"[^A-Za-z0-9_.-]", "-", socket.gethostname())[:63].strip(".-") or "Computer"
     return {"enabled": False, "engine": find_engine(), "mode": "server", "name": name, "server_ip": "", "port": 24801,
             "screens": [{"name": name, "x": 1, "y": 1}], "trusted_servers": [], "trusted_clients": [],
-            "certificate": "", "switch_delay": 250, "scroll_scale": 1.0, "invert_scroll": False, "relative_mouse": False}
+            "certificate": "", "protected_identity": "", "switch_delay": 250, "scroll_scale": 1.0, "invert_scroll": False, "relative_mouse": False}
 
 
 def validate(settings):
@@ -166,14 +158,32 @@ def import_profile(path):
                 pins = re.findall(r"(?im)^v2:sha256:([0-9a-f]{64})\s*$", database.read_text(encoding="utf-8"))
                 data["trusted_" + kind] = list(dict.fromkeys(data["trusted_" + kind] + [pin.lower() for pin in pins]))
     data["certificate"] = certificate
+    migrate_identity(data)
     data["enabled"] = False
     validate(data)
     return data
 
 
+def migrate_identity(settings):
+    """Own a protected identity before the original Deskflow can be removed."""
+    if not settings.get("certificate"):
+        return False
+    raw = Path(settings["certificate"]).read_bytes()
+    match = re.search(br"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", raw, re.S)
+    if not match:
+        raise ValueError("기존 마우스 인증서를 읽지 못했습니다.")
+    cert = x509.load_pem_x509_certificate(match[0])
+    key = serialization.load_pem_private_key(raw, password=None)
+    if cert.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo) != key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo):
+        raise ValueError("마우스 인증서와 키가 일치하지 않습니다.")
+    settings["protected_identity"] = protect(raw)
+    settings["certificate"] = ""
+    return True
+
+
 def identity_pin(config, settings):
-    if settings.get("certificate"):
-        raw = Path(settings["certificate"]).read_bytes()
+    if settings.get("protected_identity") or settings.get("certificate"):
+        raw = unprotect(settings["protected_identity"]) if settings.get("protected_identity") else Path(settings["certificate"]).read_bytes()
         match = re.search(br"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", raw, re.S)
         if not match:
             raise ValueError("Deskflow 인증서를 읽지 못했습니다.")
@@ -219,21 +229,19 @@ def private_directory(path):
 
 def prepare_profile(config, settings, directory):
     validate(settings)
-    engine = Path(settings["engine"])
+    engine = Path(find_engine() or (settings.get("engine", "") if not getattr(sys, "frozen", False) else ""))
     if not engine.is_file() or engine.name.lower() not in ("deskflow-core", "deskflow-core.exe"):
-        raise ValueError("Deskflow 1.27 이상을 설치하거나 deskflow-core 실행 파일을 선택하세요.")
+        raise ValueError("내장 마우스 구성 요소가 없습니다. ClipBridge 전체 배포본을 다시 받아주세요.")
     private_directory(directory)
     profile = directory / "settings"
     private_directory(profile)
     tls = profile / "tls"
     private_directory(tls)
-    certificate = settings.get("certificate")
-    if not certificate:
-        certificate = str(tls / "identity.pem")
-        Path(certificate).write_bytes(unprotect(config.protected_key) + config.cert_pem.encode("ascii"))
-        Path(certificate).chmod(0o600)
-    else:
-        identity_pin(config, settings)
+    migrate_identity(settings)
+    certificate = str(tls / "identity.pem")
+    identity = unprotect(settings["protected_identity"]) if settings.get("protected_identity") else unprotect(config.protected_key) + config.cert_pem.encode("ascii")
+    Path(certificate).write_bytes(identity)
+    Path(certificate).chmod(0o600)
     for kind in ("servers", "clients"):
         (tls / ("trusted-" + kind)).write_text("".join("v2:sha256:" + pin + "\n" for pin in settings["trusted_" + kind]), encoding="ascii")
     server = profile / "server.conf"
@@ -268,6 +276,9 @@ def prepare_profile(config, settings, directory):
     private_directory(profile / "state")
     environment.insert("XDG_STATE_HOME", str(profile / "state"))
     environment.insert("XDG_CONFIG_HOME", str(profile))
+    if sys.platform.startswith("linux"):
+        environment.insert("LD_LIBRARY_PATH", str(engine.parent / "lib"))
+        environment.insert("QT_PLUGIN_PATH", str(engine.parent / "plugins"))
     if sys.platform == "win32":
         # Deskflow's Windows core uses a global trust directory unless it is in
         # portable mode. A local executable copy isolates all profile/TLS writes.
@@ -335,7 +346,7 @@ class InputManager(QObject):
             self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
             self.process.readyReadStandardOutput.connect(self.read_status)
             self.process.finished.connect(self.finished)
-            self.process.errorOccurred.connect(lambda error: self.notify("input_status", "마우스 엔진 시작 실패 · Deskflow 설치 경로를 확인하세요"))
+            self.process.errorOccurred.connect(lambda error: self.notify("input_status", "내장 마우스 엔진 시작 실패 · ClipBridge 배포본을 확인하세요"))
             self.process.errorOccurred.connect(self.process_error)
             with native_library_path():
                 self.process.start(program, args)

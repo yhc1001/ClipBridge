@@ -27,7 +27,7 @@ def check(directory, mode):
     diagnostic = Path(directory) / "startup-diagnostic.txt"
     environment = dict(os.environ, LOCALAPPDATA=directory, CLIPBRIDGE_STARTUP_DIAGNOSTIC=str(diagnostic), CLIPBRIDGE_SMOKE_INSTANCE=str(uuid.uuid4()))
     start = time.perf_counter()
-    executable = root / "dist" / "v1.3.0" / "ClipBridge.exe"
+    executable = root / "dist" / "v1.4.0" / "ClipBridge.exe"
     result = subprocess.run([str(executable), "--smoke-test"], env=environment, timeout=40)
     elapsed = time.perf_counter() - start
     if result.returncode:

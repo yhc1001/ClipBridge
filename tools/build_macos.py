@@ -11,6 +11,8 @@ if sys.platform != "darwin":
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
 from PyInstaller.__main__ import run
+from prepare_input_bundle import prepare
+input_component = prepare()
 extra = []
 if platform.machine() == "x86_64":
     # Intel cryptography is built from source against Homebrew OpenSSL. Python
@@ -26,12 +28,20 @@ run(["--noconfirm", "--clean", "--windowed", "--onedir", "--name", "ClipBridge",
      "--exclude-module", "PySide6.QtWebEngineCore", "--exclude-module", "PySide6.QtWebEngineWidgets",
      "--exclude-module", "PySide6.QtPdf", "--exclude-module", "tkinter", *extra, "bootstrap.py"])
 bundle = root / "dist" / "macos" / "ClipBridge.app"
+import shutil, hashlib, json
+component = bundle / "Contents" / "Resources" / "input-engine"
+shutil.copytree(input_component, component, symlinks=True)
+subprocess.run(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", str(component / "Deskflow.app")], check=True)
+metadata = json.loads((component / "bundle.json").read_text())
+metadata["hashes"] = {p.relative_to(component).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+    for p in sorted(component.rglob("*")) if p.is_file() and not p.is_symlink() and p.name != "bundle.json"}
+(component / "bundle.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 info = bundle / "Contents" / "Info.plist"
 value = plistlib.loads(info.read_bytes())
-value.update({"CFBundleShortVersionString": "1.3.0", "CFBundleVersion": "1.3.0", "LSUIElement": True,
+value.update({"CFBundleShortVersionString": "1.4.0", "CFBundleVersion": "1.4.0", "LSUIElement": True,
               "NSPasteboardUsageDescription": "복사한 내용을 연결한 컴퓨터와 공유합니다."})
 info.write_bytes(plistlib.dumps(value))
-subprocess.run(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", str(bundle)], check=True)
+subprocess.run(["/usr/bin/codesign", "--force", "--sign", "-", str(bundle)], check=True)
 subprocess.run(["/usr/bin/codesign", "--verify", "--deep", "--strict", str(bundle)], check=True)
 architecture = "arm64" if platform.machine() == "arm64" else "intel"
 target = root / "dist" / f"ClipBridge-macOS-{architecture}.zip"
