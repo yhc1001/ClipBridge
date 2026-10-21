@@ -15,11 +15,13 @@ jobs:
         with:
           python-version: '3.13'
       - name: Desktop test dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y xvfb xclip libegl1 libopengl0 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0
+        run: sudo apt-get update -qq && sudo apt-get install -y xvfb xclip libegl1 libopengl0 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xinput0 libxcb-randr0 libxcb-shape0 libxcb-sync1 libxcb-xfixes0
       - name: Python dependencies
         run: python -m pip install -r requirements.txt
+      - name: Qt desktop startup
+        run: xvfb-run -a python -c "from PySide6.QtWidgets import QApplication; app=QApplication([]); print('X11 desktop initialized')"
       - name: Native Linux tests
-        run: xvfb-run -a python -m pytest -q --basetemp "${RUNNER_TEMP}/clipbridge-tests"
+        run: xvfb-run -a python -m pytest -q -s --basetemp "${RUNNER_TEMP}/clipbridge-tests"
       - name: Build app
         run: python tools/build_linux.py
       - name: Test packaged app

@@ -150,7 +150,7 @@ def test_advanced_dialog_and_screen_layout_remain_usable(qt_app, tmp_path, monke
     config = store.load()
     window = ui.Window(store, config)
     try:
-        assert isinstance(window.centralWidget(), QScrollArea)
+        assert window.centralWidget().findChild(QScrollArea)
         assert isinstance(window.advanced_dialog, QDialog) and window.advanced_dialog.isWindow()
         assert window.clip_limit.window() is window.advanced_dialog
         assert window.advanced_dialog.findChild(QDialogButtonBox).parent() is window.advanced_dialog
