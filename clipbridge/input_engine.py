@@ -284,8 +284,13 @@ def prepare_profile(config, settings, directory):
         # portable mode. A local executable copy isolates all profile/TLS writes.
         program = str(directory / "deskflow-core.exe")
         shutil.copyfile(engine, program)
+        # The executable's directory takes precedence over System32. Ship the
+        # matching CRT/Qt there as well so an older system VC++ runtime cannot
+        # override the bundled runtime on a clean Windows machine.
+        for library in engine.parent.glob("*.dll"):
+            shutil.copyfile(library, directory / library.name)
         system = Path(os.environ["SystemRoot"])
-        environment.insert("PATH", os.pathsep.join([str(engine.parent), str(system / "System32"), str(system)]))
+        environment.insert("PATH", os.pathsep.join([str(directory), str(system / "System32"), str(system)]))
         environment.insert("QT_PLUGIN_PATH", str(engine.parent / "plugins"))
     return program, [settings["mode"], "--settings", str(path), "--new-instance"], environment
 
@@ -293,7 +298,7 @@ def prepare_profile(config, settings, directory):
 @contextmanager
 def native_library_path():
     """External Deskflow must load its own Qt, not the frozen application's Qt."""
-    if sys.platform != "win32" or not getattr(sys, "frozen", False):
+    if sys.platform != "win32":
         yield
         return
     import ctypes

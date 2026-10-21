@@ -26,7 +26,7 @@ def probe(config, directory):
         if not process.waitForFinished(15000) or process.exitCode() != 0:
             process.kill()
             process.waitForFinished(2000)
-            raise RuntimeError("내장 입력 엔진 실행 검사 실패: " + bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")[-2000:])
+            raise RuntimeError("내장 입력 엔진 실행 검사 실패: exit=" + str(process.exitCode()) + ", error=" + process.errorString() + " " + bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")[-2000:])
         if "1.27.0" not in bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace"):
             raise RuntimeError("Bundled engine version mismatch")
     (directory / "input-probe.json").write_text(json.dumps({"bundled": True, "version": "1.27.0", "private_profile_cleaned": not Path(temporary).exists()}), encoding="utf-8")
