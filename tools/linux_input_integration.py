@@ -4,6 +4,8 @@ Never connects to or injects input into the user's desktop. Both X servers are
 private Unix-socket-only Xvfb processes created and removed by this test.
 """
 import json
+import ctypes
+import ctypes.util
 import os
 from pathlib import Path
 import select
@@ -54,6 +56,25 @@ def command(display, *arguments):
     return subprocess.check_output(["xdotool", *arguments], env=dict(os.environ, DISPLAY=display), text=True, timeout=8).strip()
 
 
+def move_pointer(display, x, y):
+    # XWarpPointer (used by xdotool mousemove) does not produce XI2 raw
+    # motion. The core listens to raw motion, so use XTest device input.
+    x11 = ctypes.CDLL(ctypes.util.find_library("X11"))
+    xtst = ctypes.CDLL(ctypes.util.find_library("Xtst"))
+    x11.XOpenDisplay.argtypes, x11.XOpenDisplay.restype = [ctypes.c_char_p], ctypes.c_void_p
+    x11.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    xtst.XTestFakeMotionEvent.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_ulong]
+    connection = x11.XOpenDisplay(display.encode())
+    if not connection:
+        raise RuntimeError("Private test display is unavailable")
+    try:
+        assert xtst.XTestFakeMotionEvent(connection, -1, x, y, 0)
+        x11.XSync(connection, False)
+    finally:
+        x11.XCloseDisplay(connection)
+
+
 application = QCoreApplication([])
 processes, logs = [], []
 with tempfile.TemporaryDirectory(prefix="ClipBridge-X11-input-") as temporary:
@@ -88,12 +109,13 @@ with tempfile.TemporaryDirectory(prefix="ClipBridge-X11-input-") as temporary:
         print("Bundled server/client TLS authentication on separate X11 desktops: PASS", flush=True)
         events = directory / "key-events.txt"
         with events.open("wb") as output:
-            processes.append(subprocess.Popen(["xev", "-display", displays[1], "-event", "keyboard"], stdout=output, stderr=subprocess.STDOUT))
+            processes.append(subprocess.Popen(["stdbuf", "-oL", "xev", "-display", displays[1], "-event", "keyboard"], stdout=output, stderr=subprocess.STDOUT))
         window = wait(lambda: command(displays[1], "search", "--name", "Event Tester"))
         command(displays[1], "windowfocus", window.splitlines()[0])
-        command(displays[0], "mousemove", "300", "240")
+        move_pointer(displays[0], 300, 240)
+        time.sleep(.1)
         before = command(displays[1], "getmouselocation", "--shell")
-        command(displays[0], "mousemove", "639", "240")
+        move_pointer(displays[0], 639, 240)
         wait(lambda: command(displays[1], "getmouselocation", "--shell") != before)
         command(displays[0], "key", "--clearmodifiers", "a")
         wait(lambda: "keysym 0x61, a" in events.read_text(errors="replace"))
