@@ -265,6 +265,9 @@ def prepare_profile(config, settings, directory):
     target.sync()
     program = str(engine)
     environment = QProcessEnvironment.systemEnvironment()
+    # The input runtime supplies its native desktop plugin. The GUI's offscreen
+    # test backend is not part of the independent input component.
+    environment.insert("QT_QPA_PLATFORM", "windows" if sys.platform == "win32" else "cocoa" if sys.platform == "darwin" else "xcb")
     if getattr(sys, "frozen", False):
         for variable in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
             if environment.contains(variable + "_ORIG"):

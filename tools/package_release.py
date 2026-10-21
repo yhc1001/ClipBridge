@@ -49,7 +49,7 @@ with zipfile.ZipFile(dist / "ClipBridge-portable.zip", "w", compression=zipfile.
     for path in (root / "artifacts").glob("*.json"):
         archive.write(path, str(path.relative_to(root)))
 with (dist / "SHA256SUMS.txt").open("w", encoding="ascii") as output:
-    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz"):
+    for name in ("ClipBridge.exe", "ClipBridge-source.zip", "ClipBridge-portable.zip", "ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz", "ClipBridge-input-sources.zip"):
         if not (dist / name).exists():
             continue
         digest = hashlib.sha256((dist / name).read_bytes()).hexdigest()

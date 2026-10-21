@@ -69,7 +69,7 @@ def main():
     if not dist.exists():
         dist = root / "dist"
     assets = ["ClipBridge.exe", "ClipBridge-portable.zip", "ClipBridge-source.zip", "SHA256SUMS.txt"]
-    assets += [name for name in ("ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz") if (dist / name).exists()]
+    assets += [name for name in ("ClipBridge-macOS-arm64.zip", "ClipBridge-macOS-intel.zip", "ClipBridge-linux-x86_64.tar.gz", "ClipBridge-input-sources.zip") if (dist / name).exists()]
     if args.action == "release":
         existing = {asset["name"]: asset for asset in release["assets"]}
         upload_base = release["upload_url"].split("{", 1)[0]
