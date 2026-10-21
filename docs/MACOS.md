@@ -14,7 +14,9 @@ Windows↔Mac, Mac↔Mac에 같은 연결 방식과 TLS 인증을 사용합니�
 
 현재 버전의 실제 macOS 테스트 및 Apple 칩/Intel .app 빌드는 [GitHub Actions](https://github.com/yhc1001/ClipBridge/actions/workflows/build-macos.yml)와 [버전별 검증 기록](../artifacts/)에서 확인합니다. 여러 대 연결 검사는 실제 TLS 소켓을 사용하지만 같은 호스트 안에서 수행합니다.
 
-**v1.3.0:** Apple 칩·Intel 각각 77개 검사와 .app 빌드·시작·종료가 통과했습니다. [빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39540488440). 큰 클립보드와 마우스 설정을 추가했습니다. 마우스는 별도 Deskflow 설치·권한 승인이 필요하며 실물 OS 간 입력은 미검증입니다.
+**v1.4.0:** Apple 칩·Intel 각각 81개 검사, .app 빌드·시작·종료와 **시스템 Deskflow 설치 없이 내장 엔진 실행** 검사가 통과했습니다. [빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39544714537). 마우스·키보드 엔진도 앱에 포함합니다. macOS의 손쉬운 사용·입력 모니터링 권한은 사용자가 한 번 허용해야 할 수 있으며, 실물 OS 간 입력은 미검증입니다.
+
+이전 **v1.3.0:** Apple 칩·Intel 각각 77개 검사와 .app 빌드·시작·종료가 통과했습니다. [빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39540488440). 이 버전까지는 마우스에 별도 Deskflow 설치가 필요했습니다.
 
 이전 **v1.2.1:** 파일 자동 수신을 기본값으로 바꾸고, 이전 ‘매번 확인’ 설정을 최초 실행 시 자동 전환합니다. Apple 칩과 Intel 각각 검사 64개와 .app 빌드·시작·종료가 통과했습니다. [v1.2.1 빌드 기록](https://github.com/yhc1001/ClipBridge/actions/runs/39536082039).
 

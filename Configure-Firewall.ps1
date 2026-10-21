@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory=$true)][ValidateCount(1,16)][string[]]$PeerIp,
     [ValidateRange(1024,65535)][int]$Port = 45832,
-    [string]$ExePath = ''
+    [string]$ExePath = '',
+    [switch]$InputOnly
 )
 $ErrorActionPreference = 'Stop'
 $taskAddresses = foreach ($taskPeerIp in $PeerIp) {
@@ -16,12 +17,23 @@ if ($taskBytes.Length -eq 4) {
 if (!$taskAllowed) { throw 'LAN/Tailscale IP only.' }
 $taskAddress.ToString()
 }
-if (!$ExePath) {
+if (!$InputOnly -and !$ExePath) {
     $ExePath = Join-Path $PSScriptRoot 'ClipBridge.exe'
     if (!(Test-Path -LiteralPath $ExePath)) { $ExePath = Join-Path $PSScriptRoot 'dist\v1.4.0\ClipBridge.exe' }
 }
-$taskExe = (Resolve-Path -LiteralPath $ExePath).Path
-$taskRule = 'ClipBridge-v1-Private'
+$taskRule = if ($InputOnly) { 'ClipBridge-v1-Input-Private' } else { 'ClipBridge-v1-Private' }
+$taskOptions = @{
+    Name = $taskRule
+    DisplayName = if ($InputOnly) { 'ClipBridge input (Private, paired PCs only)' } else { 'ClipBridge (Private, paired PCs only)' }
+    Direction = 'Inbound'
+    Action = 'Allow'
+    Protocol = 'TCP'
+    LocalPort = $Port
+    RemoteAddress = $taskAddresses
+    Profile = 'Private'
+    EdgeTraversalPolicy = 'Block'
+}
+if (!$InputOnly) { $taskOptions.Program = (Resolve-Path -LiteralPath $ExePath).Path }
 Get-NetFirewallRule -Name $taskRule -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-New-NetFirewallRule -Name $taskRule -DisplayName 'ClipBridge (Private, paired PCs only)' -Direction Inbound -Action Allow -Program $taskExe -Protocol TCP -LocalPort $Port -RemoteAddress $taskAddresses -Profile Private -EdgeTraversalPolicy Block | Out-Null
+New-NetFirewallRule @taskOptions | Out-Null
 Write-Output 'Private TCP firewall rule created. Public profile remains blocked.'

@@ -10,4 +10,4 @@ Windows/macOS 엔진은 공식 릴리스의 SHA-256 고정 아티팩트에서 �
 
 재현: `assets/input-engine-lock.json`의 고정 원본과 `tools/prepare_input_bundle.py`, 각 OS의 빌드 스크립트를 사용합니다. Linux 빌드에는 CMake, Ninja, C++20 컴파일러, Qt 6.9.3 SDK, OpenSSL 개발 파일, X11/XTest/XRandR/Xinerama/Xkbfile/Xkbcommon/Xkbregistry 개발 파일이 필요합니다. 실행 파일은 빌드 때만 다운로드하며 ClipBridge 실행 중에는 다운로드·업데이트 확인·인터넷 서버 연결을 하지 않습니다.
 
-기존 Deskflow 프로필은 선택적으로 읽어서 이전합니다. 인증서는 ClipBridge의 보호된 설정으로 복사하므로 이전 후 원본 Deskflow 폴더에 의존하지 않습니다. 두 입력 프로그램을 동시에 켜면 충돌하므로 이전에 사용하던 Deskflow는 정지하거나 제거하세요. ClipBridge가 기존 프로그램을 자동 삭제하지 않습니다.
+배포 앱에는 Deskflow 설정 가져오기·자동 탐색이 없습니다. 최초 개발 PC의 일회성 변환 도구는 소스의 `tools/legacy_input.py`에만 두며 실행 파일에 포함하지 않습니다. 예전 ClipBridge에 저장한 설정과 인증서는 계속 유지하고, 외부 파일에 남은 인증서는 보호된 설정으로 이전합니다. 다른 입력 프로그램을 동시에 켜면 충돌하므로 기존 Deskflow가 있다면 정지하세요. ClipBridge가 기존 프로그램을 자동 삭제하지 않습니다.

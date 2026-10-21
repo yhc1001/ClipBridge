@@ -34,7 +34,7 @@ Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac(macOS 14 �
 
 ## 마우스·키보드도 같이 쓰기
 
-**마우스·키보드 / 화면 배치…**에서 기존 Deskflow의 화면 배치를 가져오고, 화면 카드를 드래그해 놓으세요. **마우스·키보드 엔진이 ClipBridge에 들어 있어 Deskflow를 설치하지 않아도 됩니다.** 기존 Deskflow가 실행 중이면 정지한 뒤 ClipBridge의 마우스 공유를 켜세요. [처음 설정 3단계](docs/MOUSE_KEYBOARD.md)
+**ClipBridge만 설치하면 됩니다.** 각 컴퓨터의 **마우스·키보드 / 화면 배치…**에서 연결 코드를 서로 등록하고, 화면을 실제 모니터 위치처럼 놓은 뒤 공유를 켜세요. [처음 설정 3단계](docs/MOUSE_KEYBOARD.md)
 
 ## 용량과 고급 설정
 
@@ -53,6 +53,4 @@ Windows는 압축을 풀고 `ClipBridge.exe`를 실행합니다. Mac(macOS 14 �
 
 서로 다른 OS 사이에서도 **파일 내용을 실제 전송**하고, 탐색기·Finder·Linux 파일 관리자에서 붙여넣을 수 있는 목록을 등록합니다. 앱별 실물 기기 붙여넣기·마우스 이동은 별도 확인이 필요합니다. Linux 검증 환경은 Ubuntu 24.04 X11입니다.
 
-[검증 결과](docs/VALIDATION.md) · [여러 대 연결](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [지원 형식](docs/FORMATS.md) · [개발·빌드](docs/DEVELOPMENT.md)
-
-Windows 83개·Linux 79개·Apple 칩/Intel Mac 각각 77개 자동 검사와 각 실행 파일의 시작·종료 검사를 통과했습니다.
+[검증 결과](docs/VALIDATION-v1.4.md) · [여러 대 연결](docs/MULTIDEVICE.md) · [Mac](docs/MACOS.md) · [지원 형식](docs/FORMATS.md) · [개발·빌드](docs/DEVELOPMENT.md)

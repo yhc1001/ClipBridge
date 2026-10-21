@@ -1,0 +1,86 @@
+{
+  "version": "1.4.0",
+  "date_kst": "2026-10-21",
+  "runtime_source_commit": "dad4e20146510e9c468ca7572677c408af0c91dc",
+  "runtime_sources_identical_since_recorded_commit": true,
+  "windows": {
+    "platform": "Windows Server 2022 x64 (clean GitHub-hosted runner)",
+    "python": "3.13.16",
+    "tests_passed": 87,
+    "os_native_modules_skipped": 2,
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39544711517",
+    "system_deskflow_not_installed": "verified",
+    "packaged_exe_fresh_and_legacy_config_startup_exit": "passed",
+    "packaged_bundled_engine_dependencies_version_private_profile_cleanup": "passed"
+  },
+  "macos": {
+    "platform": "macOS 15; arm64 and x86_64",
+    "python": "3.13.15",
+    "tests_passed_per_architecture": 81,
+    "os_native_modules_skipped": 3,
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39544714537",
+    "native_pasteboard_keychain_app_build_startup_exit": "passed",
+    "packaged_bundled_engine_dependencies_version_private_profile_cleanup": "passed",
+    "signature": "ad-hoc; not Developer ID signed or notarized"
+  },
+  "linux": {
+    "platform": "Ubuntu 24.04 x86_64; X11 via private Xvfb displays",
+    "python": "3.13.16",
+    "tests_passed": 83,
+    "os_native_modules_skipped": 3,
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39544717390",
+    "native_x11_clipboard_separate_xclip_file_urls_encrypted_settings": "passed",
+    "packaged_app_startup_exit": "passed",
+    "packaged_bundled_engine_dependencies_version_private_profile_cleanup": "passed",
+    "two_private_x11_desktops_actual_tls_mouse_transition_and_keyboard_into_client_window": "passed"
+  },
+  "input_integration": {
+    "engine": "bundled Deskflow 1.27.0; no installed Deskflow lookup",
+    "imported_certificate_survives_original_removal": "passed",
+    "legacy_missing_certificate_disables_only_input": "passed",
+    "bundled_manifest_core_hash_and_tamper_rejection": "passed",
+    "tls_pins_clipboard_off_commands_off_private_profile": "passed",
+    "system_deskflow_installation_or_profile_mutated": false,
+    "physical_cross_os_keyboard_mouse": "not verified",
+    "existing_live_application_replaced_during_this_release": false
+  },
+  "setup": {
+    "deskflow_import_ui_or_automatic_profile_discovery": false,
+    "one_time_legacy_conversion_helper": "source-only tools/legacy_input.py; excluded from executable dependency graph",
+    "windows_autostart": "per-user Run entry; starts after interactive login",
+    "windows_service_or_app_crash_watchdog": "not implemented",
+    "network_and_input_child_process_retry_while_app_running": "implemented",
+    "actual_reboot_login_connection": "not verified"
+  },
+  "windows_input_firewall_helper": {
+    "private_profile_specific_peer_ips_specific_tcp_port": "passed using mocked firewall commands",
+    "clipboard_rule_backward_compatibility_and_public_ip_rejection": "passed using mocked firewall commands",
+    "actual_firewall_rules_changed_during_test": false,
+    "actual_admin_registration": "not verified"
+  },
+  "clipboard": {
+    "multi_peer_local_tls_file_bytes_conflict_reconnect_no_replay_no_echo": "passed",
+    "os_native_clipboards": "Windows, macOS and Linux X11 passed in separate native CI environments",
+    "default_clipboard_mib": 256,
+    "maximum_clipboard_mib": 512,
+    "default_files_gib": 16,
+    "maximum_files_tib": 1,
+    "maximum_entries": 20000,
+    "maximum_capacity_stress": "not verified"
+  },
+  "not_verified": [
+    "Physical cross-OS application-specific paste (Explorer/Finder/GNOME/KDE/Word/Excel/browser/PicPick/Snipping Tool)",
+    "Mouse and keyboard movement between physical computers; display DPI and language mappings",
+    "Actual logout/login autostart",
+    "Moonlight paste UI",
+    "512 MiB / 1 TiB / 20,000-entry maximum load",
+    "16-client maximum load",
+    "macOS user first-open accessibility/input monitoring/Gatekeeper permissions",
+    "Linux distributions other than Ubuntu 24.04"
+  ],
+  "unsupported": [
+    "Linux Wayland input engine; background clipboard not guaranteed",
+    "Windows UAC/lock screen/pre-login input"
+  ],
+  "packaging": "Windows/Mac binaries are unchanged CI artifacts. Linux archive documentation may be refreshed locally with binary bytes and executable modes preserved. Corresponding engine/Qt sources and rebuild scripts are provided separately."
+}

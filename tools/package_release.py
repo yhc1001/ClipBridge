@@ -29,6 +29,12 @@ for name in ("PySide6", "PySide6_Essentials", "shiboken6", "pywin32", "Pillow", 
 python_license = Path(__import__("sys").base_prefix) / "LICENSE.txt"
 if python_license.exists():
     shutil.copyfile(python_license, licenses / "Python-LICENSE.txt")
+for name in ("DESKFLOW-LICENSE.txt", "DESKFLOW-OPENSSL-EXCEPTION.txt"):
+    source = root / "vendor/input-engine" / name
+    if source.is_file():
+        target = licenses / "Deskflow" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
 (licenses / "components.json").write_text(json.dumps(components, indent=2, ensure_ascii=False), encoding="utf-8")
 
 source_files = [root / name for name in ("main.py", "bootstrap.py", "build.ps1", "build-macos.sh", "Configure-Firewall.ps1", "requirements.txt", "requirements-lock.txt", "README.md", "RELEASE_NOTES.md", "THIRD_PARTY_NOTICES.md", ".gitignore", ".gitattributes")]
