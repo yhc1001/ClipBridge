@@ -180,61 +180,44 @@ def diagnostics():
             win32evtlog.CloseEventLog(handle)
 
 
-def restricted_owner_probe(output):
-    """Same enrolled SID with Admin group disabled, no UI or input actions."""
+def check_restricted_owner(directory):
+    """Exercise actual access checks using a Medium-IL, non-admin thread token.
+
+    GitHub's runner window station can reject startup of an otherwise valid
+    filtered child (STATUS_DLL_INIT_FAILED). Impersonation avoids that unrelated
+    desktop bootstrap and leaves every service/pipe/process access check under
+    the same restricted token. This never relaxes runner desktop permissions.
+    """
     import ctypes
     import pywintypes
-    report = {}
-    try:
-        assert not ctypes.windll.shell32.IsUserAnAdmin(), "Probe was not filtered"
-        token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
-        try:
-            integrity = win32security.GetTokenInformation(token, win32security.TokenIntegrityLevel)
-            assert win32security.ConvertSidToStringSid(integrity[0]) == "S-1-16-8192"
-        finally:
-            token.Close()
-        status = service.request({"operation": "status"})
-        assert status["ok"]
-        for access in (win32con.PROCESS_VM_WRITE, win32con.PROCESS_TERMINATE):
-            try:
-                process = win32api.OpenProcess(access, False, scm_status()["ProcessId"])
-            except pywintypes.error as error:
-                assert error.winerror == 5
-            else:
-                process.Close()
-                raise AssertionError("Unnecessary SYSTEM process rights granted")
-        report = {"ok": True, "administrator": False}
-    except Exception as error:
-        report = {"ok": False, "error": type(error).__name__, "code": getattr(error, "winerror", None)}
-    Path(output).write_text(json.dumps(report), encoding="utf-8")
-    return 0 if report.get("ok") else 1
-
-
-def check_restricted_owner(directory):
     token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_ALL_ACCESS)
-    restricted = None
+    restricted = thread_token = None
     try:
-        privilege = win32security.LookupPrivilegeValue(None, win32security.SE_INCREASE_QUOTA_NAME)
-        win32security.AdjustTokenPrivileges(token, False, [(privilege, win32con.SE_PRIVILEGE_ENABLED)])
         admins = win32security.CreateWellKnownSid(win32security.WinBuiltinAdministratorsSid)
         restricted = win32security.CreateRestrictedToken(token, 1, [(admins, 0)], None, None)
         win32security.SetTokenInformation(restricted, win32security.TokenIntegrityLevel,
             (win32security.ConvertStringSidToSid("S-1-16-8192"), 0x20))
-        output = directory / "restricted-owner.json"
-        output.write_text('{"ok":false,"error":"Probe did not initialize"}', encoding="utf-8")
-        command = subprocess.list2cmdline([sys.executable, str(Path(__file__).resolve()), "--owner-probe", str(output)])
-        process, thread, _, _ = win32process.CreateProcessAsUser(restricted, sys.executable, command,
-            None, None, False, win32con.CREATE_NO_WINDOW, None, str(ROOT), win32process.STARTUPINFO())
+        win32security.ImpersonateLoggedOnUser(restricted)
         try:
-            assert win32event.WaitForSingleObject(process, 15000) == win32event.WAIT_OBJECT_0
-            report = json.loads(output.read_text(encoding="utf-8"))
-            code = win32process.GetExitCodeProcess(process)
-            assert code == 0 and report["ok"], {"exit_code": code, **report}
+            thread_token = win32security.OpenThreadToken(win32api.GetCurrentThread(), win32con.TOKEN_QUERY, True)
+            assert not win32security.CheckTokenMembership(thread_token, admins)
+            integrity = win32security.GetTokenInformation(thread_token, win32security.TokenIntegrityLevel)
+            assert win32security.ConvertSidToStringSid(integrity[0]) == "S-1-16-8192"
+            assert service.request({"operation": "status"})["ok"]
+            for access in (win32con.PROCESS_VM_WRITE, win32con.PROCESS_TERMINATE):
+                try:
+                    process = win32api.OpenProcess(access, False, scm_status()["ProcessId"])
+                except pywintypes.error as error:
+                    assert error.winerror == 5
+                else:
+                    process.Close()
+                    raise AssertionError("Unnecessary SYSTEM process rights granted")
         finally:
-            thread.Close()
-            process.Close()
-        print("UAC-filtered owner: authenticated service query without process injection/termination rights: PASS", flush=True)
+            win32security.RevertToSelf()
+        print("Medium-integrity non-admin owner: authenticated service query; process injection/termination denied: PASS", flush=True)
     finally:
+        if thread_token:
+            thread_token.Close()
         if restricted:
             restricted.Close()
         token.Close()
@@ -349,6 +332,4 @@ def check():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "--owner-probe":
-        raise SystemExit(restricted_owner_probe(sys.argv[2]))
     check()
