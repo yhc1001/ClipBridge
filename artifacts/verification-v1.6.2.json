@@ -1,0 +1,71 @@
+{
+  "version": "1.6.2",
+  "date_kst": "2026-10-21",
+  "runtime_source_commit": "905011c6fb74c78fa64166df9284a09fb91f48ca",
+  "runtime_sources_identical_since_recorded_commit": true,
+  "windows": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39586651865",
+    "platform": "Windows Server 2022 x64; Python 3.13",
+    "tests_passed": 116,
+    "tests_skipped": 2,
+    "general_exe_fresh_legacy_native_clipboard_tray_startup_exit": "passed",
+    "bundled_input_version_private_profile_cleanup": "passed",
+    "msi_install_owner_authentication": "passed",
+    "restricted_medium_il_admin_group_disabled_token_service_query": "passed using impersonation; separate restricted GUI process not tested",
+    "same_token_vm_write_and_terminate_handles": "denied as required",
+    "private_fixed_application_port_firewall": "passed",
+    "system_uiaccess_tls_private_admin_desktop_actual_mouse_keyboard": "passed",
+    "child_and_service_crash_recovery_shutdown_suspend_explicit_stop_and_msi_removal": "passed; physical reboot/UAC consent not tested"
+  },
+  "macos": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39586651974",
+    "platform": "macOS 15 arm64 and x86_64; Python 3.13",
+    "tests_passed_each": 105,
+    "tests_skipped_each": 8,
+    "packaged_native_pasteboard_keychain_startup_exit_input_probe": "passed"
+  },
+  "linux": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/39586651760",
+    "platform": "Ubuntu 24.04 x86_64 X11; Python 3.13",
+    "tests_passed": 107,
+    "tests_skipped": 8,
+    "packaged_native_clipboard_encrypted_settings_startup_exit_input_probe": "passed",
+    "two_private_x11_displays_actual_native_tls_mouse_keyboard": "passed"
+  },
+  "input_performance": {
+    "old_implicit_edge_wait_ms": 250,
+    "new_default_edge_wait_ms": 0,
+    "old_unified_default_migration": "once on upgrade; manual/custom and later explicit choices preserved",
+    "legacy_250ms_samples_ms": [
+      265.52,
+      266.0,
+      264.56
+    ],
+    "instant_samples_ms": [
+      4.64,
+      5.23,
+      5.21
+    ],
+    "legacy_median_ms": 265.52,
+    "instant_median_ms": 5.21,
+    "measurement_scope": "Same Deskflow 1.27.0 native engine, loopback TLS, two private Xvfb displays; includes observation and process scheduling. Not physical Windows/Mac or LAN/Tailscale latency.",
+    "local_safe_preference_setup_profile_ui_core_tests_passed": 61,
+    "live_main_saved_wait_ms": 0,
+    "live_main_application_restarted_to_apply": true,
+    "live_main_installed_exe_version_during_setting_update": "1.6.1",
+    "user_confirmed_standalone_mouse_after_removing_deskflow": true,
+    "physical_post_change_handoff_latency_or_subjective_smoothness_verified": false,
+    "native_event_path": "Native engine sends input directly over its TCP_NODELAY TLS channel; clipboard/files have their own channel"
+  },
+  "not_verified": [
+    "Physical Windows/macOS cross-screen handoff timing",
+    "LAN/Tailscale end-to-end latency",
+    "High DPI, high refresh rates, games and heavy CPU/network load",
+    "Actual UAC consent, lock and sign-in screens",
+    "Physical power cycle and login reconnect",
+    "Physical cross-OS app-specific clipboard paste, PicPick, Snipping Tool, Word, Excel, file manager and Moonlight UI",
+    "RDP and concurrent/fast-switch user sessions",
+    "Maximum clipboard/file sizes and all 16 clients"
+  ],
+  "packaging": "Verified CI executable/native bytes preserved; external ZIP/TAR docs may be refreshed, MSI docs remain its build snapshot. SHA256SUMS covers final files. Only live Main input preference was changed and GUI restarted; no live MSI installation was performed."
+}
