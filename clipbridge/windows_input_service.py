@@ -42,7 +42,9 @@ def owner_sid():
 
 
 def security_attributes(owner=None):
-    descriptor = "D:P(A;;GA;;;SY)(A;;GA;;;BA)" + (f"(A;;GRGW;;;{owner})" if owner else "")
+    # Do not grant FILE_CREATE_PIPE_INSTANCE to the user. GENERIC_WRITE would
+    # include that right and permit an extra server instance under our name.
+    descriptor = "D:P(A;;GA;;;SY)(A;;GA;;;BA)" + (f"(A;;0x12018b;;;{owner})" if owner else "")
     attributes = pywintypes.SECURITY_ATTRIBUTES()
     attributes.SECURITY_DESCRIPTOR = win32security.ConvertStringSecurityDescriptorToSecurityDescriptor(descriptor, 1)
     return attributes
@@ -153,6 +155,11 @@ class InputController:
             self.child = None
         self.pid = 0
         self.identity = {}
+        try:
+            from .windows_input_firewall import update
+            update()
+        except Exception:
+            pass
         if self.profile.exists():
             from .files import assert_local_regular
             assert_local_regular(self.profile)
@@ -201,6 +208,9 @@ class InputController:
             try:
                 settings = {**defaults(), **self.state["settings"], "protected_identity": self.state["protected_identity"]}
                 program, arguments, environment = prepare_profile(SimpleNamespace(), settings, self.profile, copy_windows_runtime=False)
+                if settings["mode"] == "server":
+                    from .windows_input_firewall import update
+                    update(program, settings["port"])
                 env = {key: environment.value(key) for key in environment.keys()}
                 self.child, self.job, self.pid, self.identity = create_input_process(program, arguments, env, session)
                 self.session, self.applied = session, self.generation
@@ -244,7 +254,7 @@ class ClipBridgeInputService(win32serviceutil.ServiceFramework):
                             raise
                     result = win32event.WaitForMultipleObjects([self.stop_event, overlap.hEvent], False, win32event.INFINITE)
                     if result == win32event.WAIT_OBJECT_0:
-                        win32file.CancelIoEx(handle, overlap)
+                        win32file.CancelIo(handle)
                         try:
                             win32file.GetOverlappedResult(handle, overlap, True)
                         except pywintypes.error:
@@ -271,8 +281,16 @@ class ClipBridgeInputService(win32serviceutil.ServiceFramework):
                     handle.Close()
 
     def SvcDoRun(self):
+        try:
+            self.run_service()
+        except Exception:
+            import servicemanager, traceback
+            servicemanager.LogErrorMsg("ClipBridgeInput startup failure:\n" + traceback.format_exc())
+            raise
+
+    def run_service(self):
         manager = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CONNECT)
-        service = win32service.OpenService(manager, SERVICE_NAME, win32service.SERVICE_CHANGE_CONFIG)
+        service = win32service.OpenService(manager, SERVICE_NAME, win32service.SERVICE_CHANGE_CONFIG | win32service.SERVICE_START)
         try:
             win32service.ChangeServiceConfig2(service, win32service.SERVICE_CONFIG_FAILURE_ACTIONS,
                 {"ResetPeriod": 86400, "RebootMsg": None, "Command": None,
@@ -281,6 +299,21 @@ class ClipBridgeInputService(win32serviceutil.ServiceFramework):
             win32service.CloseServiceHandle(service)
             win32service.CloseServiceHandle(manager)
         owner = owner_sid()
+        manager = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CONNECT)
+        access = win32con.READ_CONTROL | win32con.WRITE_DAC
+        service = win32service.OpenService(manager, SERVICE_NAME, access)
+        try:
+            descriptor = win32service.QueryServiceObjectSecurity(service, win32security.DACL_SECURITY_INFORMATION)
+            acl = descriptor.GetSecurityDescriptorDacl()
+            present = any(acl.GetAce(index)[0][0] == 0 and acl.GetAce(index)[1] & 0x20035 == 0x20035
+                          and win32security.ConvertSidToStringSid(acl.GetAce(index)[2]) == owner for index in range(acl.GetAceCount()))
+            if not present:
+                acl.AddAccessAllowedAce(win32security.ACL_REVISION, 0x20035, win32security.ConvertStringSidToSid(owner))
+            descriptor.SetSecurityDescriptorDacl(True, acl, False)
+            win32service.SetServiceObjectSecurity(service, win32security.DACL_SECURITY_INFORMATION, descriptor)
+        finally:
+            win32service.CloseServiceHandle(service)
+            win32service.CloseServiceHandle(manager)
         controller = InputController(Path(os.environ["ProgramData"]) / "ClipBridgeInputService", owner)
         listener = threading.Thread(target=self.pipe_loop, args=(controller, owner), daemon=True)
         listener.start()

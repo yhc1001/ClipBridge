@@ -279,6 +279,24 @@ class InputManager(QObject):
         self.retry = QTimer(self)
         self.retry.setInterval(5000)
         self.retry.timeout.connect(self.start)
+        self.service_timer = QTimer(self)
+        self.service_timer.setInterval(2000)
+        self.service_timer.timeout.connect(self.check_service)
+
+    def check_service(self):
+        if not self.service_running:
+            return
+        from .windows_service_client import request
+        try:
+            status = request({"operation": "status"})
+            label = "UAC 서비스 · 입력 엔진 실행 중" if status["pid"] else "UAC 서비스 · 입력 연결 준비 중"
+            if status.get("error"):
+                label = "UAC 서비스 · 자동 재시도 (" + status["error"] + ")"
+            self.notify("input_status", label)
+        except Exception:
+            self.notify("input_status", "UAC 서비스 · 연결 자동 복구 중")
+            if not self.retry.isActive():
+                self.retry.start()
 
     def start(self):
         settings = {**defaults(), **self.config.input_settings}
@@ -287,10 +305,16 @@ class InputManager(QObject):
             if service.installation():
                 try:
                     if settings["enabled"]:
+                        required = "trusted_servers" if settings["mode"] == "client" else "trusted_clients"
+                        if not settings[required]:
+                            self.notify("input_status", "상대 마우스 연결 코드를 먼저 등록하세요.")
+                            return
                         service.configure(self.config, settings)
                         self.service_running = True
-                        self.notify("input_status", "UAC 서비스 · 마우스·키보드 실행 중 · 연결 자동 복구")
+                        self.service_timer.start()
+                        self.notify("input_status", "UAC 서비스 · 입력 연결 준비 중")
                     else:
+                        self.service_timer.stop()
                         service.request({"operation": "stop"})
                         self.service_running = False
                     self.retry.stop()
@@ -362,6 +386,7 @@ class InputManager(QObject):
 
     def stop(self):
         self.retry.stop()
+        self.service_timer.stop()
         if self.service_running:
             from . import windows_service_client as service
             try:
@@ -369,7 +394,10 @@ class InputManager(QObject):
                 operation = "suspend" if self.system_shutdown or win32api.GetSystemMetrics(0x2000) else "stop"
                 service.request({"operation": operation})
             except Exception:
-                self.notify("input_status", "UAC 서비스 정지 확인 필요")
+                try:
+                    service.control(False)
+                except Exception:
+                    self.notify("input_status", "UAC 서비스 정지 확인 필요")
             self.service_running = False
         if self.process:
             process, self.process = self.process, None

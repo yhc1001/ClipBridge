@@ -90,7 +90,7 @@ def request(message, timeout=2):
     if len(payload) > MAX_REQUEST:
         raise ValueError("Input service request too large")
     win32pipe.WaitNamedPipe(PIPE, 500)
-    handle = win32file.CreateFile(PIPE, win32con.GENERIC_READ | win32con.GENERIC_WRITE, 0, None,
+    handle = win32file.CreateFile(PIPE, win32con.GENERIC_READ | 0x2 | 0x100, 0, None,
                                 win32con.OPEN_EXISTING, win32con.FILE_FLAG_OVERLAPPED | 0x00110000, None)
     try:
         verify_server(win32pipe.GetNamedPipeServerProcessId(handle), installed["executable"])
@@ -108,8 +108,27 @@ def request(message, timeout=2):
     return response
 
 
+def control(start):
+    import win32service
+    manager = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CONNECT)
+    handle = None
+    try:
+        access = win32service.SERVICE_QUERY_STATUS | (win32service.SERVICE_START if start else win32service.SERVICE_STOP)
+        handle = win32service.OpenService(manager, SERVICE_NAME, access)
+        status = win32service.QueryServiceStatus(handle)[1]
+        if start and status == win32service.SERVICE_STOPPED:
+            win32service.StartService(handle, None)
+        elif not start and status != win32service.SERVICE_STOPPED:
+            win32service.ControlService(handle, win32service.SERVICE_CONTROL_STOP)
+    finally:
+        if handle:
+            win32service.CloseServiceHandle(handle)
+        win32service.CloseServiceHandle(manager)
+
+
 def configure(config, settings):
     from .security import unprotect
     from .service_policy import public_settings
+    control(True)
     identity = unprotect(settings["protected_identity"]) if settings.get("protected_identity") else unprotect(config.protected_key) + config.cert_pem.encode("ascii")
     return request({"operation": "configure", "settings": public_settings(settings), "identity": base64.b64encode(identity).decode("ascii")})

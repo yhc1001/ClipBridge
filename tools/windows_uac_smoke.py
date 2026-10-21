@@ -5,6 +5,7 @@ if sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true":
     raise SystemExit("This installer/input test is restricted to disposable Windows CI runners")
 
 import json
+import queue
 from pathlib import Path
 import socket
 import ssl
@@ -18,6 +19,7 @@ import win32con
 import win32security
 import win32service
 import win32ts
+import win32evtlog
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -79,6 +81,7 @@ class NativeTestPeer:
         self.count = 0
         self.connection = None
         self.error = None
+        self.outgoing = queue.Queue()
         threading.Thread(target=self.run, daemon=True).start()
 
     def run(self):
@@ -100,6 +103,8 @@ class NativeTestPeer:
                 last = time.monotonic()
                 connection.settimeout(.2)
                 while not self.stop.is_set():
+                    while not self.outgoing.empty():
+                        packet(connection, self.outgoing.get_nowait())
                     if time.monotonic() - last >= 1:
                         packet(connection, b"CALV")
                         last = time.monotonic()
@@ -117,6 +122,9 @@ class NativeTestPeer:
                 self.connection = None
                 if connection:
                     connection.close()
+
+    def send(self, data):
+        self.outgoing.put(data)
 
     def close(self):
         self.stop.set()
@@ -148,14 +156,34 @@ def terminate(pid):
         process.Close()
 
 
+def diagnostics():
+    for name in ("Application", "System"):
+        handle = win32evtlog.OpenEventLog(None, name)
+        try:
+            kept = 0
+            for _ in range(8):
+                records = win32evtlog.ReadEventLog(handle, win32evtlog.EVENTLOG_BACKWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ, 0)
+                for record in records:
+                    message = " ".join(record.StringInserts or [])
+                    if any(word in message for word in ("ClipBridgeInput", "windows_input_service", "service_bootstrap")):
+                        print("Own service event: " + message[-4000:], flush=True)
+                        kept += 1
+                        if kept >= 8:
+                            break
+                if not records or kept >= 8:
+                    break
+        finally:
+            win32evtlog.CloseEventLog(handle)
+
+
 def check():
     installer = ROOT / "dist" / ("v" + __version__) / "ClipBridge-UAC-setup-x64.msi"
     with tempfile.TemporaryDirectory(prefix="ClipBridge-service-CI-") as temporary:
         directory = Path(temporary)
         log = directory / "install.log"
         peer = None
-        result = subprocess.run(["msiexec", "/i", str(installer), "/qn", "/norestart", "/l*v", str(log)], timeout=300)
         try:
+            result = subprocess.run(["msiexec", "/i", str(installer), "/qn", "/norestart", "/l*v", str(log)], timeout=300)
             if result.returncode not in (0, 3010):
                 print(log.read_text(encoding="utf-16", errors="replace")[-18000:])
                 raise RuntimeError("MSI installation failed: " + str(result.returncode))
@@ -174,6 +202,8 @@ def check():
             assert status["pid"] and status["identity"]["sid"] == "S-1-5-18", status
             assert status["identity"]["ui_access"] and status["identity"]["session"] == win32ts.WTSGetActiveConsoleSessionId(), status
             print("Installed native core: mutual TLS, SYSTEM, active console session, UIAccess token: PASS", flush=True)
+            from windows_secure_desktop_probe import verify
+            verify(peer)
             try:
                 service.request({"operation": "execute", "command": "not-allowed"})
                 raise AssertionError("Service accepted arbitrary command")
@@ -193,6 +223,15 @@ def check():
             service.request({"operation": "stop"})
             assert service.request({"operation": "status"})["pid"] == 0
             print("Explicit stop closes input child: PASS", flush=True)
+        except Exception:
+            diagnostics()
+            try:
+                print("Service diagnostic: " + json.dumps(service.request({"operation": "status"})), flush=True)
+            except Exception as error:
+                print("Service diagnostic unavailable: " + repr(error), flush=True)
+            if log.exists():
+                print(log.read_text(encoding="utf-16", errors="replace")[-18000:], flush=True)
+            raise
         finally:
             if peer:
                 peer.close()

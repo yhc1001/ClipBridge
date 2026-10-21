@@ -147,6 +147,9 @@ class ConfigStore:
                 self.save(config)
             return config
         config = Config()
+        if sys.platform == "win32":
+            from .windows_service_client import installation
+            config.autostart = bool(installation())
         config.protected_secret = protect(secrets.token_bytes(32))
         config.cert_pem, config.protected_key = make_identity(config.device_id)
         self.save(config)
