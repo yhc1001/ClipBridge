@@ -1,14 +1,13 @@
-"""Korean Deskflow setup in its own scrollable dialog."""
-from pathlib import Path
+"""ClipBridge input setup in its own scrollable dialog."""
 
 from PySide6.QtCore import Qt, QSignalBlocker, QTimer
 from PySide6.QtGui import QBrush, QColor, QPen
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFormLayout, QGraphicsItem, QGraphicsRectItem, QGraphicsScene, QGraphicsSimpleTextItem, QGraphicsView,
     QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea,
     QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
-from .input_engine import connection_code, default_profile, defaults, import_profile, parse_code, validate
+from .input_engine import connection_code, defaults, parse_code, validate
 
 
 class ComputerTile(QGraphicsRectItem):
@@ -36,17 +35,12 @@ class InputDialog(QDialog):
         self.setWindowTitle("ClipBridge · 마우스·키보드 / 화면 배치")
         self.resize(660, 660)
         self.data = {**defaults(), **owner.config.input_settings}
-        if not owner.config.input_settings and default_profile().is_file():
-            try:
-                self.data = import_profile(default_profile())
-            except (ValueError, OSError):
-                pass
         outer = QVBoxLayout(self)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        note = QLabel("마우스를 화면 가장자리로 옮겨 다른 컴퓨터로 넘어갑니다.\nClipBridge에 마우스·키보드 엔진이 들어 있어 별도 설치가 필요 없습니다.\n기존 Deskflow를 사용 중이면 정지한 뒤 켜세요. 없는 컴퓨터는 바로 설정하면 됩니다.")
+        note = QLabel("마우스를 화면 가장자리로 옮겨 다른 컴퓨터로 넘어갑니다.\n각 컴퓨터에서 마우스 연결 코드를 서로 등록하고 화면을 배치한 뒤 공유를 켜세요.")
         note.setWordWrap(True)
         layout.addWidget(note)
         form = QFormLayout()
@@ -77,9 +71,6 @@ class InputDialog(QDialog):
         form.addRow(self.invert)
         form.addRow(self.relative)
         layout.addLayout(form)
-        imported = QPushButton("기존 Deskflow 설정·화면 배치 가져오기")
-        imported.clicked.connect(self.import_existing)
-        layout.addWidget(imported)
         layout.addWidget(QLabel("화면 카드를 드래그하여 배치하세요. 맞닿은 화면으로 마우스가 넘어갑니다. (서버 설정)"))
         self.scene = QGraphicsScene(self)
         self.preview = QGraphicsView(self.scene)
@@ -107,7 +98,7 @@ class InputDialog(QDialog):
         layout.addLayout(codes)
         self.trust = QLabel()
         layout.addWidget(self.trust)
-        layout.addWidget(QLabel("Scroll Lock: 화면 이동 잠금/해제. macOS/Wayland는 OS의 입력 권한 승인이 필요할 수 있습니다."))
+        layout.addWidget(QLabel("Scroll Lock: 화면 이동 잠금/해제. Mac은 입력 권한 허용이 필요할 수 있습니다. Linux는 X11에서 사용하세요."))
         scroll.setWidget(widget)
         outer.addWidget(scroll)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -202,19 +193,6 @@ class InputDialog(QDialog):
             if previous.get(screen["name"].casefold()):
                 screen["options"] = previous[screen["name"].casefold()]
         return value
-
-    def import_existing(self):
-        path = default_profile()
-        if not path.is_file():
-            selected, _ = QFileDialog.getOpenFileName(self, "Deskflow.conf 선택", str(path.parent), "Deskflow 설정 (*.conf);;모든 파일 (*)")
-            if not selected:
-                return
-            path = Path(selected)
-        try:
-            self.data = import_profile(path)
-            self.load()
-        except Exception as error:
-            QMessageBox.warning(self, "설정 가져오기", str(error) if isinstance(error, ValueError) else "Deskflow 설정 파일을 읽지 못했습니다.")
 
     def copy_code(self):
         try:

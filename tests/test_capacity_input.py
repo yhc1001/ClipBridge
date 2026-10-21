@@ -7,7 +7,8 @@ import pytest
 from PySide6.QtCore import QSettings
 
 from clipbridge.config import ConfigStore
-from clipbridge.input_engine import connection_code, defaults, import_profile, parse_code, prepare_profile, server_configuration, validate
+from clipbridge.input_engine import connection_code, defaults, parse_code, prepare_profile, server_configuration, validate
+from tools.legacy_input import import_profile
 from clipbridge.model import CHUNK, MAX_TOTAL, Snapshot, Stamp
 from clipbridge.streaming import ClipboardAssembly
 from test_network import pair

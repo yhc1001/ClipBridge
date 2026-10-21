@@ -1,4 +1,4 @@
-"""Probe installed Deskflow CLI in a private profile, without starting input hooks."""
+"""Developer-only legacy migration probe, without starting input hooks."""
 import hashlib
 import os
 from pathlib import Path
@@ -10,12 +10,13 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
 from PySide6.QtCore import QCoreApplication
 from clipbridge.config import ConfigStore
-from clipbridge.input_engine import default_profile, defaults, find_engine, import_profile, prepare_profile
+from clipbridge.input_engine import defaults, find_engine, prepare_profile
+from legacy_input import default_profile, import_profile
 
 application = QCoreApplication([])
 engine = find_engine()
 if not engine:
-    raise SystemExit("No installed native Deskflow core; input integration remains unverified")
+    raise SystemExit("Prepare the bundled input engine before this developer probe")
 original = default_profile()
 digest = hashlib.sha256(original.read_bytes()).digest() if original.is_file() else None
 with tempfile.TemporaryDirectory(prefix="ClipBridge-input-probe-") as temporary:
@@ -30,5 +31,5 @@ with tempfile.TemporaryDirectory(prefix="ClipBridge-input-probe-") as temporary:
     assert "1.27" in version, "This validation records Deskflow 1.27 only"
     assert "--settings" in arguments
     assert not digest or hashlib.sha256(original.read_bytes()).digest() == digest
-    print("Installed Deskflow 1.27: private portable profile, CLI dependencies, existing profile preservation: PASS")
+    print("Bundled input 1.27: private portable profile, CLI dependencies, legacy profile preservation: PASS")
 print("Private input profile and temporary identity removed: PASS; mouse/keyboard hooks were not started")
