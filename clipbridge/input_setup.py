@@ -460,7 +460,7 @@ class InputSetup(threading.Thread):
                     if item["name"] != root["name"]:
                         arranged = place_screen(arranged, item["name"])
                 value["screens"] = arranged
-            value["enabled"] = bool(value["trusted_clients"])
+            value["enabled"] = bool(self.config.mouse_enabled and value["trusted_clients"])
             value["easy_revision"] = value.get("easy_revision", 0) + 1
             clipboard_peers = copy.deepcopy(self.config.trusted_peers)
             clipboard_peers.pop(device, None)
@@ -468,7 +468,9 @@ class InputSetup(threading.Thread):
             writer = self.clients.pop(device, None)
             if writer:
                 try:
-                    await write_frame(writer, {"type": "revoked"})
+                    await asyncio.wait_for(write_frame(writer, {"type": "revoked"}), 1)
+                except (OSError, ConnectionError, TimeoutError):
+                    pass  # The local revocation must succeed even if the peer is offline.
                 finally:
                     writer.close()
             await self._broadcast()
@@ -478,7 +480,10 @@ class InputSetup(threading.Thread):
             value = settings(self.config)
             if value.get("easy_controller"):
                 if self.client_writer:
-                    await write_frame(self.client_writer, {"type": "leave"})
+                    try:
+                        await asyncio.wait_for(write_frame(self.client_writer, {"type": "leave"}), 1)
+                    except (OSError, ConnectionError, TimeoutError):
+                        pass  # Always forget the old controller locally.
                 if self.client_task:
                     self.client_task.cancel()
                     await asyncio.gather(self.client_task, return_exceptions=True)

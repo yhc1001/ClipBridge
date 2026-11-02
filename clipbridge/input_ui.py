@@ -14,7 +14,7 @@ from .input_engine import connection_code, defaults, parse_code, validate
 class ComputerTile(QGraphicsRectItem):
     def __init__(self, owner, row, name, x, y):
         super().__init__(0, 0, 112, 65)
-        self.owner, self.row = owner, row
+        self.owner, self.row, self.name = owner, row, name
         self.setBrush(QBrush(QColor("#eaf3ff")))
         self.setPen(QPen(QColor("#1769c2"), 2))
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -29,6 +29,7 @@ class ComputerTile(QGraphicsRectItem):
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
         x, y = max(0, min(8, round(self.x() / 132))), max(0, min(8, round(self.y() / 85)))
+        self.setPos(x * 132, y * 85)
         self.owner.move_screen(self.row, x, y)
 
 
@@ -106,6 +107,7 @@ class InputDialog(QDialog):
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
         layout.addWidget(QLabel("연결된 화면 · 양쪽 PC에서 카드를 옮기면 배치가 함께 바뀝니다."))
+        layout.addWidget(QLabel("연결 해제: 상대 PC 카드를 클릭한 다음 아래 버튼을 누르세요."))
         self.scene = QGraphicsScene(self)
         self.preview = QGraphicsView(self.scene)
         self.preview.setMinimumHeight(250)
@@ -175,14 +177,14 @@ class InputDialog(QDialog):
         name = None
         for item in selected:
             if isinstance(item, ComputerTile):
-                name = self.table.item(item.row, 0).text()
+                name = item.name
                 break
         if self.data.get("easy_controller"):
             name = self.data["name"]
         if not name:
             self.status.setText("연결을 해제할 화면 카드를 먼저 선택하세요.")
             return
-        if QMessageBox.question(self, "연결 해제", "선택 PC의 마우스·키보드 연결을 해제할까요?") != QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, "연결 해제", "선택 PC의 클립보드·파일·마우스 연결을 해제할까요?") != QMessageBox.StandardButton.Yes:
             return
         try:
             self.watch(self.owner.input_setup.disconnect(name))
@@ -247,6 +249,7 @@ class InputDialog(QDialog):
         self.refresh_preview()
 
     def refresh_preview(self):
+        selected = {item.name for item in self.scene.selectedItems() if isinstance(item, ComputerTile)}
         self.scene.clear()
         max_x, max_y = 4, 2
         for row in range(self.table.rowCount()):
@@ -256,13 +259,17 @@ class InputDialog(QDialog):
                 if not 0 <= x <= 8 or not 0 <= y <= 8:
                     continue
                 max_x, max_y = max(max_x, x), max(max_y, y)
-                self.scene.addItem(ComputerTile(self, row, name, x, y))
+                tile = ComputerTile(self, row, name, x, y)
+                self.scene.addItem(tile)
+                tile.setSelected(name in selected)
             except (AttributeError, ValueError):
                 pass
         self.scene.setSceneRect(-10, -10, (max_x + 1) * 132, (max_y + 1) * 85)
         self.preview.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def move_screen(self, row, x, y):
+        if (int(self.table.item(row, 1).text()), int(self.table.item(row, 2).text())) == (x, y):
+            return
         with QSignalBlocker(self.table):
             occupied = set()
             for other in range(self.table.rowCount()):
