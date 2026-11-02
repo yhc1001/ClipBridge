@@ -265,12 +265,19 @@ class NetworkEngine(threading.Thread):
     async def _prepare_files(self, snapshot, hash_files, cancelled):
         def stale():
             return cancelled.is_set() or self.stop_requested.is_set() or not self.config.can_send() or not self.ledger.current(snapshot.stamp)
+        lease = self.store.pin(snapshot.paths)
         try:
             for attempt in range(5):
                 if stale():
                     raise InterruptedError("superseded")
                 try:
-                    return await asyncio.to_thread(scan_sources, snapshot.paths, self.config.file_limit, stale, hash_files=hash_files)
+                    scan = asyncio.create_task(asyncio.to_thread(scan_sources, snapshot.paths, self.config.file_limit, stale, hash_files=hash_files))
+                    try:
+                        return await asyncio.shield(scan)
+                    except asyncio.CancelledError:
+                        cancelled.set()
+                        await asyncio.gather(scan, return_exceptions=True)
+                        raise
                 except InterruptedError:
                     raise
                 except OSError:
@@ -280,6 +287,7 @@ class NetworkEngine(threading.Thread):
                     await asyncio.sleep(.05 * 2 ** attempt)
         finally:
             cancelled.set()
+            self.store.release(lease)
 
     async def _session(self, reader, writer, peer, relay):
         session = Session(self, reader, writer, peer, relay)

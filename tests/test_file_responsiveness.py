@@ -282,3 +282,36 @@ def test_superseded_preparation_cannot_deliver_old_file(pair, monkeypatch, tmp_p
     wait_for(lambda: not a.engine.sessions[b.config.device_id].tasks)
     assert b.received.empty()
     assert not list(b.store.base.iterdir())
+
+
+def test_cancelled_shared_scan_keeps_relay_source_until_reader_finishes(pair, monkeypatch, tmp_path):
+    import clipbridge.network as network
+    a, b = pair
+    source = tmp_path / "relay-source.txt"
+    source.write_bytes(b"retained staged data")
+    manifest, _ = scan_sources([str(source)], 100)
+    first = ReceiveTransfer(a.store.base, str(uuid.uuid4()), manifest)
+    first.chunk(source.name, 0, source.read_bytes())
+    a.store.retain(first)
+    paths = first.finish()
+    original, started, release = network.scan_sources, threading.Event(), threading.Event()
+    def slow(*args, **kwargs):
+        started.set()
+        assert release.wait(5)
+        return original(*args, **kwargs)
+    monkeypatch.setattr(network, "scan_sources", slow)
+    try:
+        a.send(paths=paths)
+        assert started.wait(3)
+        a.send({"text": b"cancel file"})
+        assert b.received.get(timeout=3).formats["text"] == b"cancel file"
+        second = ReceiveTransfer(a.store.base, str(uuid.uuid4()), manifest)
+        second.chunk(source.name, 0, source.read_bytes())
+        async def retain():
+            a.store.retain(second)
+        asyncio.run_coroutine_threadsafe(retain(), a.engine.loop).result(3)
+        assert first.directory.exists(), "background shared preparation still owns a source lease"
+        release.set()
+        wait_for(lambda: not first.directory.exists())
+    finally:
+        release.set()
