@@ -1,0 +1,13 @@
+{
+  "version": "1.6.4",
+  "runtime_source_commit": "62ee159e8b757972f4a499da700eba3ba5c410d4",
+  "baseline_regressions": "three reproduced failures: click loses selection, client leave socket failure, host revoke socket failure",
+  "local_disconnect_tests_passed": 4,
+  "local_selected_suite_passed_before_final_label_change": 30,
+  "after_label_change_disconnect_tests_passed": 4,
+  "windows": {"run": "https://github.com/yhc1001/ClipBridge/actions/runs/41416138128", "passed": 137, "skipped": 2, "packaged_exe_and_uac_msi": "passed"},
+  "macos_arm_and_intel": {"run": "https://github.com/yhc1001/ClipBridge/actions/runs/41416138274", "passed_each": 124, "skipped_each": 9, "packaged_apps": "passed"},
+  "linux_x11": {"run": "https://github.com/yhc1001/ClipBridge/actions/runs/41416138606", "passed": 126, "skipped": 9, "packaged_app_and_native_input": "passed"},
+  "not_verified": ["User's actual PCs after installation", "offline peer configuration until the peer reconnects or is disconnected locally", "actual UAC consent and physical reboot"],
+  "packaging": "CI runtime bytes preserved; external documentation may be refreshed; MSI documentation is a build-time snapshot. Live user application was not replaced or restarted."
+}
