@@ -277,7 +277,14 @@ def test_delay_rendered_shell_files_do_not_restart_the_same_copy(native, tmp_pat
                 raise AssertionError("clipboard busy")
             try:
                 cb.EmptyClipboard()
-                cb.SetClipboardData(win32con.CF_HDROP, None)
+                # NULL is a successful delayed-render registration, but the
+                # pywin32 wrapper treats its NULL return as an invalid handle.
+                import ctypes as C
+                from ctypes import wintypes as W
+                register = C.WinDLL("user32", use_last_error=True).SetClipboardData
+                register.argtypes, register.restype = [W.UINT, W.HANDLE], W.HANDLE
+                register(win32con.CF_HDROP, None)
+                assert cb.IsClipboardFormatAvailable(win32con.CF_HDROP)
             finally:
                 cb.CloseClipboard()
             ready.set()
