@@ -10,6 +10,7 @@ import time
 import win32api
 import win32clipboard as cb
 import win32con
+import win32event
 import win32gui
 
 from .images import normalize
@@ -98,10 +99,11 @@ class ClipboardWorker(threading.Thread):
         self.capture_attempts = 0
         self.pending = None
         self.has_received_files = False
+        self.wake = win32event.CreateEvent(None, True, False, None)
 
     def _proc(self, hwnd, message, wparam, lparam):
         if message == WM_UPDATE:
-            self.capture_due = time.monotonic() + .015
+            self.capture_due = time.monotonic()
             self.capture_attempts = 0
             return 0
         if message == WM_WORK:
@@ -131,7 +133,16 @@ class ClipboardWorker(threading.Thread):
                     self._capture_retry()
                 if self.pending and time.monotonic() >= self.pending[3]:
                     self._apply_retry()
-                self.stopping.wait(.01)
+                # Wake on clipboard/window messages instead of adding a polling
+                # tick (and a debounce tick) to every copy and received apply.
+                now = time.monotonic()
+                deadlines = [now + .5]
+                if self.capture_due:
+                    deadlines.append(self.capture_due)
+                if self.pending:
+                    deadlines.append(self.pending[3])
+                timeout = max(0, int((min(deadlines) - now) * 1000 + .999))
+                win32event.MsgWaitForMultipleObjects((self.wake,), False, timeout, win32con.QS_ALLINPUT)
         except Exception as error:
             self.on_status("클립보드 감시 오류 (" + type(error).__name__ + ")")
         finally:
@@ -153,6 +164,7 @@ class ClipboardWorker(threading.Thread):
 
     def stop(self):
         self.stopping.set()
+        win32event.SetEvent(self.wake)
         self.join(timeout=3)
 
     def apply(self, snapshot: Snapshot, callback):
@@ -163,6 +175,8 @@ class ClipboardWorker(threading.Thread):
 
     def copy_private_text(self, text: str):
         self.commands.put({"private_text": text})
+        if self.hwnd:
+            win32gui.PostMessage(self.hwnd, WM_WORK, 0, 0)
 
     def _private_text(self, text):
         self.ledger.local()
@@ -206,7 +220,7 @@ class ClipboardWorker(threading.Thread):
         except Exception as error:
             self.capture_attempts += 1
             if self.capture_attempts < 20:
-                self.capture_due = time.monotonic() + min(.025 * self.capture_attempts, .25)
+                self.capture_due = time.monotonic() + retry_delay(self.capture_attempts)
             else:
                 self.capture_due = 0
                 self.on_status("클립보드를 읽지 못했습니다 (" + type(error).__name__ + ") · 다음 복사 시 다시 시도")
@@ -254,6 +268,10 @@ class ClipboardWorker(threading.Thread):
                 if len(paths) > MAX_FILES:
                     self.on_status("파일 목록 개수 제한을 초과했습니다.")
                     paths = []
+            # Reading a delay-rendered shell/OLE format can itself increment
+            # the sequence. Record the final value while we still hold the
+            # clipboard open, or that notification restarts this same transfer.
+            seq = sequence()
             self.seen_sequence = seq
         finally:
             cb.CloseClipboard()
@@ -324,8 +342,14 @@ class ClipboardWorker(threading.Thread):
             callback(True)
         except Exception as error:
             if attempts < 20:
-                self.pending = (snapshot, callback, expected, time.monotonic() + min(.025 * (attempts + 1), .25), attempts + 1)
+                self.pending = (snapshot, callback, expected, time.monotonic() + retry_delay(attempts + 1), attempts + 1)
             else:
                 self.pending = None
                 self.on_status("클립보드 쓰기 실패 (" + type(error).__name__ + ")")
                 callback(False)
+
+
+def retry_delay(attempt):
+    # Fast recovery from ordinary millisecond clipboard locks; retain the
+    # bounded slower retries for applications that hold it longer.
+    return min(.005 * 2 ** min(attempt - 1, 6), .25)

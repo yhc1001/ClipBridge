@@ -4,6 +4,7 @@ import hashlib
 import os
 import shutil
 import stat
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -25,7 +26,7 @@ def assert_local_regular(path: Path):
     return info
 
 
-def scan_sources(paths: list[str], limit: int, cancelled=lambda: False):
+def scan_sources(paths: list[str], limit: int, cancelled=lambda: False, *, hash_files=True):
     entries, sources, roots, total, names = [], {}, [], 0, set()
     if not paths or len(paths) > MAX_FILES:
         raise ValueError("file count limit")
@@ -47,16 +48,19 @@ def scan_sources(paths: list[str], limit: int, cancelled=lambda: False):
             total += info.st_size
             if total > limit:
                 raise ValueError("file size limit")
-            digest = hashlib.sha256()
-            with source.open("rb") as stream:
-                while chunk := stream.read(CHUNK):
-                    if cancelled():
-                        raise InterruptedError("superseded")
-                    digest.update(chunk)
-            after = source.stat()
-            if (info.st_size, info.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
-                raise ValueError("source changed during transfer")
-            entries.append({"path": relative, "kind": "file", "size": info.st_size, "sha256": digest.hexdigest()})
+            entry = {"path": relative, "kind": "file", "size": info.st_size}
+            if hash_files:
+                digest = hashlib.sha256()
+                with source.open("rb") as stream:
+                    while chunk := stream.read(CHUNK):
+                        if cancelled():
+                            raise InterruptedError("superseded")
+                        digest.update(chunk)
+                after = source.stat()
+                if (info.st_size, info.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+                    raise ValueError("source changed during transfer")
+                entry["sha256"] = digest.hexdigest()
+            entries.append(entry)
             sources[relative] = source
 
     for path in paths:
@@ -67,7 +71,7 @@ def scan_sources(paths: list[str], limit: int, cancelled=lambda: False):
     return {"entries": entries, "roots": roots, "total": total}, sources
 
 
-def validate_manifest(value, limit):
+def validate_manifest(value, limit, *, streaming=False):
     if not isinstance(value, dict) or not isinstance(value.get("entries"), list) or not 0 < len(value["entries"]) <= MAX_FILES:
         raise ValueError("invalid manifest")
     roots, entries = value.get("roots"), value["entries"]
@@ -87,7 +91,7 @@ def validate_manifest(value, limit):
         kind, size = entry.get("kind"), entry.get("size")
         if folded in names or kind not in ("file", "dir") or type(size) is not int or not 0 <= size <= limit or (kind == "dir" and size != 0):
             raise ValueError("invalid entry size/type/collision")
-        if kind == "file":
+        if kind == "file" and (not streaming or "sha256" in entry):
             digest = entry.get("sha256", "")
             if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
                 raise ValueError("invalid hash")
@@ -109,13 +113,16 @@ def validate_manifest(value, limit):
 
 
 class ReceiveTransfer:
-    def __init__(self, parent: Path, transfer_id: str, manifest: dict):
+    def __init__(self, parent: Path, transfer_id: str, manifest: dict, *, streaming=False):
         valid_id(transfer_id)
         if manifest["total"] > shutil.disk_usage(parent).free:
             raise ValueError("파일을 받을 임시 저장 공간이 부족합니다.")
         self.directory = parent / transfer_id
         self.directory.mkdir(exist_ok=False)
         self.manifest = manifest
+        self.streaming = streaming
+        self.lock = threading.RLock()
+        self.stream, self.stream_name = None, None
         self.entries = {e["path"]: e for e in manifest["entries"] if e["kind"] == "file"}
         self.offsets = {name: 0 for name in self.entries}
         self.hashes = {name: hashlib.sha256() for name in self.entries}
@@ -133,27 +140,51 @@ class ReceiveTransfer:
             raise
 
     def chunk(self, name: str, offset: int, data: bytes):
+        with self.lock:
+            self._chunk(name, offset, data)
+
+    def _close_stream(self):
+        if self.stream:
+            stream = self.stream
+            self.stream, self.stream_name = None, None
+            stream.close()
+
+    def _chunk(self, name: str, offset: int, data: bytes):
         entry = self.entries.get(name)
         if not entry or type(offset) is not int or offset != self.offsets[name] or not 0 < len(data) <= CHUNK or offset + len(data) > entry["size"]:
             raise ValueError("invalid chunk")
-        target = self.directory.joinpath(*name.split("/"))
-        assert_local_regular(target)
-        with target.open("r+b") as stream:
-            stream.seek(offset)
-            stream.write(data)
+        if name != self.stream_name:
+            self._close_stream()
+            target = self.directory.joinpath(*name.split("/"))
+            assert_local_regular(target)
+            self.stream = target.open("r+b")
+            self.stream_name = name
+        self.stream.seek(offset)
+        self.stream.write(data)
         self.hashes[name].update(data)
         self.offsets[name] += len(data)
         self.received += len(data)
         self.updated = time.monotonic()
 
-    def finish(self):
-        for name, entry in self.entries.items():
-            if self.offsets[name] != entry["size"] or self.hashes[name].hexdigest() != entry["sha256"]:
-                raise ValueError("file integrity check failed")
-        return [str(self.directory / name) for name in self.manifest["roots"]]
+    def finish(self, hashes=None):
+        with self.lock:
+            self._close_stream()
+            if self.streaming and (not isinstance(hashes, dict) or hashes.keys() != self.entries.keys()):
+                raise ValueError("missing final file hashes")
+            for name, entry in self.entries.items():
+                expected = hashes[name] if self.streaming else entry["sha256"]
+                if (not isinstance(expected, str) or len(expected) != 64 or
+                        ("sha256" in entry and expected != entry["sha256"]) or
+                        self.offsets[name] != entry["size"] or self.hashes[name].hexdigest() != expected):
+                    raise ValueError("file integrity check failed")
+            return [str(self.directory / name) for name in self.manifest["roots"]]
 
     def remove(self):
-        shutil.rmtree(self.directory, ignore_errors=True)
+        with self.lock:
+            try:
+                self._close_stream()
+            finally:
+                shutil.rmtree(self.directory, ignore_errors=True)
 
 
 class TransferStore:

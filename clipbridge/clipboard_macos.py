@@ -118,6 +118,7 @@ def prepare_formats(formats, limit):
 
 class ClipboardWorker(QObject):
     prepared = Signal(object)
+    wake = Signal()
 
     def __init__(self, config, ledger, on_local, on_applied, on_status, pasteboard=None, platform_name="macOS"):
         super().__init__()
@@ -130,8 +131,9 @@ class ClipboardWorker(QObject):
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="ClipBridge-image")
         self.capture_future = None
         self.timer = QTimer(self)
-        self.timer.setInterval(100)
+        self.timer.setInterval(50)
         self.timer.timeout.connect(self.tick)
+        self.wake.connect(self.tick, Qt.ConnectionType.QueuedConnection)
         self.prepared.connect(self.capture_done, Qt.ConnectionType.QueuedConnection)
         self.seen_sequence = self.board.count()
         self.own_marker, self.last_hash = "", ""
@@ -159,9 +161,11 @@ class ClipboardWorker(QObject):
 
     def apply(self, snapshot, callback):
         self.commands.put((snapshot, callback))
+        self.wake.emit()
 
     def copy_private_text(self, text):
         self.commands.put({"private_text": text})
+        self.wake.emit()
 
     def tick(self):
         try:

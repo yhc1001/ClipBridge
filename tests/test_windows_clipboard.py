@@ -6,6 +6,7 @@ import atexit
 
 import pytest
 cb = pytest.importorskip("win32clipboard")
+import win32api
 import win32con
 import win32gui
 from PIL import Image
@@ -242,3 +243,64 @@ def test_explorer_hdrop_capture_and_bitmap_only_conversion(native, tmp_path):
         cb.CloseClipboard()
     snapshot = captured.get(timeout=5)
     assert {"PNG", "DIB", "DIBV5"} <= snapshot.formats.keys()
+
+
+def test_delay_rendered_shell_files_do_not_restart_the_same_copy(native, tmp_path):
+    """CI desktop only: a real owner responds to WM_RENDERFORMAT for CF_HDROP."""
+    worker, ledger, captured, applied, statuses = native
+    source = tmp_path / "delay-rendered.txt"
+    source.write_bytes(b"shell-like delayed render")
+    drop = struct.pack("<IiiII", 20, 0, 0, 0, 1) + (str(source) + "\0\0").encode("utf-16-le")
+    stopped, ready, errors, renders = threading.Event(), threading.Event(), queue.Queue(), []
+    class_name = "ClipBridge-Delayed-Test-" + worker.config.device_id
+    def proc(hwnd, message, wparam, lparam):
+        if message == 0x0305 and wparam == win32con.CF_HDROP:  # WM_RENDERFORMAT
+            cb.SetClipboardData(win32con.CF_HDROP, drop)
+            renders.append(True)
+            return 0
+        return win32gui.DefWindowProc(hwnd, message, wparam, lparam)
+    def owner():
+        window = None
+        try:
+            wc = win32gui.WNDCLASS()
+            wc.hInstance = win32api.GetModuleHandle(None)
+            wc.lpszClassName, wc.lpfnWndProc = class_name, proc
+            win32gui.RegisterClass(wc)
+            window = win32gui.CreateWindowEx(0, class_name, "Delayed render test", 0, 0, 0, 0, 0, -3, 0, wc.hInstance, None)
+            for _ in range(100):
+                try:
+                    cb.OpenClipboard(window)
+                    break
+                except Exception:
+                    time.sleep(.01)
+            else:
+                raise AssertionError("clipboard busy")
+            try:
+                cb.EmptyClipboard()
+                cb.SetClipboardData(win32con.CF_HDROP, None)
+            finally:
+                cb.CloseClipboard()
+            ready.set()
+            while not stopped.wait(.002):
+                win32gui.PumpWaitingMessages()
+        except BaseException as error:
+            errors.put(error)
+            ready.set()
+        finally:
+            if window:
+                win32gui.DestroyWindow(window)
+            win32gui.UnregisterClass(class_name, win32api.GetModuleHandle(None))
+    thread = threading.Thread(target=owner, daemon=True)
+    thread.start()
+    try:
+        assert ready.wait(5)
+        if not errors.empty():
+            raise errors.get()
+        snapshot = captured.get(timeout=5)
+        assert snapshot.paths == [str(source)]
+        assert snapshot.sequence == sequence()
+        time.sleep(.15)
+        assert renders == [True] and captured.empty()
+    finally:
+        stopped.set()
+        thread.join(3)

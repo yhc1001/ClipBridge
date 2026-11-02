@@ -6,6 +6,7 @@ import concurrent.futures
 import hashlib
 import hmac
 import json
+import os
 import secrets
 import socket
 import struct
@@ -52,6 +53,8 @@ class NetworkEngine(threading.Thread):
         self.persist = persist or (lambda config: None)
         self.pending = 0
         self.peer_caps = {}
+        self.file_preparations = {}
+        self.preparation_stamp = None
         self.ready = threading.Event()
         self.stopped = threading.Event()
         self.stop_requested = threading.Event()
@@ -213,7 +216,7 @@ class NetworkEngine(threading.Thread):
         self.ledger.observe(request.get("clock"))
         self.peer_caps[client_id] = self.capabilities(request)
         relay = 2 if request.get("relay") == 2 else 1
-        await write_frame(writer, {"type": "ready", "relay": relay, "clip_stream": 1, "clip_limit": self.config.clip_limit, "file_limit": self.config.file_limit, "clock": self.ledger.clock, "proof": proof(secret, "server", server_id, client_id, server_nonce, client_nonce)})
+        await write_frame(writer, {"type": "ready", "relay": relay, "clip_stream": 1, "file_stream": 1, "clip_limit": self.config.clip_limit, "file_limit": self.config.file_limit, "clock": self.ledger.clock, "proof": proof(secret, "server", server_id, client_id, server_nonce, client_nonce)})
         return client_id, relay
 
     async def _client_auth(self, reader, writer):
@@ -222,7 +225,7 @@ class NetworkEngine(threading.Thread):
         if challenge.get("type") != "challenge" or challenge.get("version") != 1 or server_id != self.config.peer_id:
             raise ValueError("wrong server")
         client_id, client_nonce = self.config.device_id, nonce()
-        await write_frame(writer, {"type": "auth", "relay": 2, "clip_stream": 1, "clip_limit": self.config.clip_limit, "file_limit": self.config.file_limit, "name": socket.gethostname()[:64] or "컴퓨터", "device": client_id, "nonce": client_nonce, "clock": self.ledger.clock,
+        await write_frame(writer, {"type": "auth", "relay": 2, "clip_stream": 1, "file_stream": 1, "clip_limit": self.config.clip_limit, "file_limit": self.config.file_limit, "name": socket.gethostname()[:64] or "컴퓨터", "device": client_id, "nonce": client_nonce, "clock": self.ledger.clock,
                                    "proof": proof(self.config.secret, "client", server_id, client_id, server_nonce, client_nonce)})
         ready = await read_frame(reader, 8192, timeout=125)
         expected = proof(self.config.secret, "server", server_id, client_id, server_nonce, client_nonce)
@@ -238,7 +241,45 @@ class NetworkEngine(threading.Thread):
         clip, files = message.get("clip_limit", 96 * 1024**2), message.get("file_limit", 1024**3)
         if type(clip) is not int or type(files) is not int or not 0 < clip <= MAX_CLIP or not 0 < files <= MAX_TOTAL:
             raise ValueError("invalid peer limits")
-        return {"stream": message.get("clip_stream") == 1, "clip": clip, "files": files}
+        return {"stream": message.get("clip_stream") == 1, "file_stream": message.get("file_stream") == 1, "clip": clip, "files": files}
+
+    async def prepare_files(self, snapshot, *, hash_files):
+        # All recipients of one copy share its scan. A cancelled/slow recipient
+        # must not cancel preparation for the other recipients.
+        if not self.ledger.current(snapshot.stamp) or not self.config.can_send():
+            raise InterruptedError("superseded")
+        if self.preparation_stamp != snapshot.stamp:
+            for _, cancelled in self.file_preparations.values():
+                cancelled.set()
+            self.file_preparations.clear()
+            self.preparation_stamp = snapshot.stamp
+        if hash_files not in self.file_preparations:
+            cancelled = threading.Event()
+            task = asyncio.create_task(self._prepare_files(snapshot, hash_files, cancelled))
+            # Also consume failures if every recipient is superseded while
+            # this shared disk job is finishing.
+            task.add_done_callback(lambda done: None if done.cancelled() else done.exception())
+            self.file_preparations[hash_files] = (task, cancelled)
+        return await asyncio.shield(self.file_preparations[hash_files][0])
+
+    async def _prepare_files(self, snapshot, hash_files, cancelled):
+        def stale():
+            return cancelled.is_set() or self.stop_requested.is_set() or not self.config.can_send() or not self.ledger.current(snapshot.stamp)
+        try:
+            for attempt in range(5):
+                if stale():
+                    raise InterruptedError("superseded")
+                try:
+                    return await asyncio.to_thread(scan_sources, snapshot.paths, self.config.file_limit, stale, hash_files=hash_files)
+                except InterruptedError:
+                    raise
+                except OSError:
+                    if attempt == 4:
+                        raise
+                    self.notify("status", "파일이 사용 중입니다 · 자동 재시도 중")
+                    await asyncio.sleep(.05 * 2 ** attempt)
+        finally:
+            cancelled.set()
 
     async def _session(self, reader, writer, peer, relay):
         session = Session(self, reader, writer, peer, relay)
@@ -377,16 +418,9 @@ class Session:
                 self.engine.notify("status", "상대 컴퓨터의 클립보드 용량 제한을 높인 뒤 다시 복사하세요.")
                 return
             if snapshot.paths:
-                self.engine.notify("status", "파일 확인 중 · 새 복사 시 이전 전송 취소")
-                cancelled = threading.Event()
-                scan = asyncio.create_task(asyncio.to_thread(scan_sources, snapshot.paths, self.config.file_limit,
-                                           lambda: cancelled.is_set() or self.closed or not self.ledger.current(snapshot.stamp)))
-                try:
-                    manifest, sources = await asyncio.shield(scan)
-                except asyncio.CancelledError:
-                    cancelled.set()
-                    await asyncio.gather(scan, return_exceptions=True)
-                    raise
+                self.engine.notify("status", "파일 목록 확인 중 · 새 복사 시 이전 전송 취소")
+                stream_hashes = self.caps.get("file_stream", False)
+                manifest, sources = await self.engine.prepare_files(snapshot, hash_files=not stream_hashes)
                 if not self.ledger.current(snapshot.stamp):
                     return
                 if manifest["total"] > self.caps["files"]:
@@ -398,7 +432,8 @@ class Session:
                 stream_formats = self.caps["stream"] and sum(map(len, snapshot.formats.values())) > 1024**2
                 extra = {"sizes": {name: len(data) for name, data in snapshot.formats.items()}, "digest": await asyncio.to_thread(Snapshot(snapshot.formats).digest)} if stream_formats else {}
                 await self.send({"type": "file_offer", "id": transfer_id, "stamp": snapshot.stamp.wire(), "manifest": manifest,
-                                 "formats": {} if stream_formats else await asyncio.to_thread(snapshot.wire), **extra})
+                                 "formats": {} if stream_formats else await asyncio.to_thread(snapshot.wire), **extra,
+                                 **({"stream_hashes": True} if stream_hashes else {})})
                 accepted = await asyncio.wait_for(waiter, 125)
                 if not accepted:
                     self.engine.notify("status", "상대 PC에서 파일 수신을 허용하지 않았습니다.")
@@ -410,31 +445,38 @@ class Session:
                                 raise InterruptedError("superseded")
                             await self.send({"type": "file_format_chunk", "id": transfer_id, "format": name, "offset": offset,
                                 "data": base64.b64encode(data[offset:offset + CHUNK]).decode("ascii")})
-                count = 0
+                count, hashes = 0, {}
+                self.engine.notify("status", "파일 전송 중 · 완료되면 상대 PC에서 붙여넣을 수 있습니다.")
                 for entry in manifest["entries"]:
                     if entry["kind"] != "file":
                         continue
                     source = sources[entry["path"]]
-                    # Scan rejected junctions; verify again immediately before reading.
-                    from .files import assert_local_regular
-                    await asyncio.to_thread(assert_local_regular, source)
-                    stream = await asyncio.to_thread(source.open, "rb")
+                    stream = await self._open_source(source, entry["size"], snapshot.stamp)
                     try:
+                        before = os.fstat(stream.fileno())
                         offset, digest = 0, hashlib.sha256()
                         while chunk := await asyncio.to_thread(stream.read, CHUNK):
                             if not self.ledger.current(snapshot.stamp) or not self.config.can_send():
                                 raise InterruptedError("superseded")
+                            if offset + len(chunk) > entry["size"]:
+                                raise ValueError("source file changed")
                             digest.update(chunk)
                             await self.send({"type": "file_chunk", "id": transfer_id, "path": entry["path"], "offset": offset, "data": base64.b64encode(chunk).decode("ascii")})
                             offset += len(chunk)
                             count += len(chunk)
                             if count % (4 * 1024 * 1024) < CHUNK:
                                 self.engine.notify("status", f"파일 전송 중 {count // 1024**2}/{manifest['total'] // 1024**2} MiB")
-                        if offset != entry["size"] or digest.hexdigest() != entry["sha256"]:
+                        after = os.fstat(stream.fileno())
+                        if (offset != entry["size"] or
+                                (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns) or
+                                (not stream_hashes and digest.hexdigest() != entry["sha256"])):
                             raise ValueError("source file changed")
+                        hashes[entry["path"]] = digest.hexdigest()
                     finally:
                         await asyncio.to_thread(stream.close)
-                await self.send({"type": "file_end", "id": transfer_id})
+                if not self.ledger.current(snapshot.stamp) or not self.config.can_send():
+                    raise InterruptedError("superseded")
+                await self.send({"type": "file_end", "id": transfer_id, **({"hashes": hashes} if stream_hashes else {})})
             else:
                 if self.caps["stream"] and sum(map(len, snapshot.formats.values())) > 1024**2:
                     clipboard_offer = True
@@ -460,8 +502,41 @@ class Session:
                 await self.send({"type": "file_abort", "id": transfer_id})
             elif clipboard_offer and not self.closed and not self.engine.stop_requested.is_set():
                 await self.send({"type": "clip_abort", "id": transfer_id})
+        except Exception as error:
+            if file_offer and not self.closed and not self.engine.stop_requested.is_set():
+                await self.send({"type": "file_abort", "id": transfer_id})
+            if snapshot.paths:
+                self.engine.notify("status", "파일 전송 실패 (" + type(error).__name__ + ") · 파일 사용 상태를 확인하고 다시 복사하세요.")
+                return
+            raise
         finally:
             self.waiters.pop(transfer_id, None)
+
+    async def _open_source(self, source, size, stamp):
+        def opened():
+            from .files import assert_local_regular
+            assert_local_regular(source)
+            stream = source.open("rb")
+            if os.fstat(stream.fileno()).st_size != size:
+                stream.close()
+                raise ValueError("source file changed")
+            return stream
+        for attempt in range(5):
+            if self.closed or not self.config.can_send() or not self.ledger.current(stamp):
+                raise InterruptedError("superseded")
+            pending = asyncio.create_task(asyncio.to_thread(opened))
+            try:
+                return await asyncio.shield(pending)
+            except asyncio.CancelledError:
+                result = await asyncio.gather(pending, return_exceptions=True)
+                if not isinstance(result[0], BaseException):
+                    result[0].close()
+                raise
+            except OSError:
+                if attempt == 4:
+                    raise
+                self.engine.notify("status", "파일이 사용 중입니다 · 자동 재시도 중")
+                await asyncio.sleep(.05 * 2 ** attempt)
 
     async def _apply(self, snapshot, event_id, transfer=None):
         future = concurrent.futures.Future()
@@ -563,7 +638,10 @@ class Session:
                 self.clipboard_receiving = None
         elif kind == "file_offer":
             stamp = self._stamp(message)
-            manifest = validate_manifest(message.get("manifest"), self.config.file_limit)
+            streaming = message.get("stream_hashes") is True
+            if streaming and not self.caps.get("file_stream"):
+                raise ValueError("unnegotiated file streaming")
+            manifest = validate_manifest(message.get("manifest"), self.config.file_limit, streaming=streaming)
             if not self.config.can_receive() or not self.config.files or self.config.file_policy == "block" or not self.ledger.claim(stamp):
                 await self.send({"type": "file_accept", "id": message["id"], "ok": False})
                 return
@@ -581,7 +659,7 @@ class Session:
                 extra = await asyncio.to_thread(Snapshot.decode, message["formats"], self.config.clip_limit)
                 extra = extra.filtered(self.config.text, self.config.images)
                 self.in_formats = await asyncio.to_thread(normalize, extra.formats, self.config.clip_limit, incoming=True)
-            self.spawn(self._offer(message["id"], stamp, manifest))
+            self.spawn(self._offer(message["id"], stamp, manifest, streaming=streaming))
         elif kind == "file_accept":
             waiter = self.waiters.get(message.get("id"))
             if waiter and not waiter.done():
@@ -613,7 +691,7 @@ class Session:
             if self.receiving and message.get("id") == self.in_id:
                 transfer, self.receiving = self.receiving, None
                 try:
-                    paths = await asyncio.to_thread(transfer.finish)
+                    paths = await asyncio.to_thread(transfer.finish, message.get("hashes"))
                     if self.file_formats_receiving:
                         assembly, self.file_formats_receiving = self.file_formats_receiving, None
                         extra = await asyncio.to_thread(assembly.finish)
@@ -634,12 +712,12 @@ class Session:
         else:
             raise ValueError("unknown protocol message")
 
-    async def _offer(self, event_id, stamp, manifest):
+    async def _offer(self, event_id, stamp, manifest, *, streaming=False):
         accepted = self.config.file_policy == "allow" or stamp.device in self.config.file_allow_ids or await self.engine.ask("files", {"device": stamp.device, "count": len(manifest["entries"]), "total": manifest["total"]},
             lambda: self.ledger.current(stamp) and self.in_id == event_id and not self.closed and self.config.can_receive())
         accepted = accepted and self.ledger.current(stamp) and self.in_id == event_id and self.config.can_receive() and self.config.files and self.config.file_policy != "block"
         if accepted:
-            create = asyncio.create_task(asyncio.to_thread(ReceiveTransfer, self.engine.store.base, event_id, manifest))
+            create = asyncio.create_task(asyncio.to_thread(ReceiveTransfer, self.engine.store.base, event_id, manifest, streaming=streaming))
             try:
                 transfer = await asyncio.shield(create)
             except asyncio.CancelledError:
@@ -653,7 +731,7 @@ class Session:
                 return
             if self.in_id == event_id and self.ledger.current(stamp) and not self.closed:
                 self.receiving = transfer
-                self.engine.notify("status", "파일 자동 수신 중" if self.config.file_policy == "allow" else "승인한 파일 수신 중")
+                self.engine.notify("status", "파일 수신 중 · 완료되면 붙여넣을 수 있습니다.")
             else:
                 transfer.remove()
                 accepted = False

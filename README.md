@@ -13,7 +13,7 @@
 | Apple 칩 / Intel Mac | `ClipBridge-macOS-arm64.zip` / `ClipBridge-macOS-intel.zip` |
 | Linux x86_64 · X11 | `ClipBridge-linux-x86_64.tar.gz` |
 
-Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.2로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
+Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.3으로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
 
 ## 연결은 세 단계
 
@@ -31,6 +31,8 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 평소에는 그냥 복사하고 붙여넣으세요. Windows·Linux는 **Ctrl+V**, Mac은 **⌘V**입니다. 파일·폴더도 매번 묻지 않고 실제 내용을 전송합니다. Moonlight로 newserver 화면만 보는 노트북에는 설치하지 않아도 됩니다.
 
+**파일 복사 반응을 개선했습니다.** Windows의 늦게 준비되는 파일 목록이 같은 전송을 재시작하는 문제를 수정했고, 잠깐 사용 중인 파일은 자동 재시도합니다. 파일은 전송하면서 검사하여 시작 대기를 줄입니다. 큰 파일은 수신 PC에 **‘바로 붙여넣을 수 있습니다’**가 표시된 뒤 붙여넣으세요. 완료 전의 붙여넣기를 자동으로 예약하지는 않습니다.
+
 창을 닫으면 트레이에서 계속 동작합니다. 새 설정은 로그인 자동 실행이 기본이며 기존에 꺼 둔 선택은 유지합니다. Main을 껐다 켜면 자동 재연결하고, 이후 새로 복사한 내용부터 공유합니다. **IP를 입력받아 승인한 PC가 연결 중심이므로, 그 PC가 꺼져 있는 동안 그룹 공유는 멈춥니다.**
 
 용량·자동 시작·파일 수신 옵션은 **고급 설정…**에 있습니다. 기본 클립보드 256MiB / 파일 16GiB이며 최대 512MiB / 1TiB입니다.
@@ -46,6 +48,6 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-자동 검사: Windows 116개 · Mac 각 105개 · Linux 107개 통과. 분리된 X11 화면 전환은 이전 설정 중앙값 265.52ms → 새 기본값 5.21ms로 측정했습니다. 실제 PC·네트워크 전체의 지연 수치는 아니며 검증 범위는 아래에 구분했습니다.
+v1.6.3의 파일 복사 개선과 검사 범위는 [검증 결과](docs/VALIDATION-v1.6.3.md)에 기록합니다. 이전 버전의 화면 전환 검사 결과는 [v1.6.2 검증](docs/VALIDATION-v1.6.2.md)에 있습니다. 실제 장비·네트워크의 체감 속도를 보장하는 수치는 아닙니다.
 
-[검증 결과](docs/VALIDATION-v1.6.2.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)
+[검증 결과](docs/VALIDATION-v1.6.3.md) · [파일 공유](docs/FILE_SHARING.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)

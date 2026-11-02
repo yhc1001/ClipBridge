@@ -1,7 +1,7 @@
 """X11 clipboard MIME/URI bridge. Qt owns the selection and serves paste requests."""
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QMimeData, QUrl
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QMimeData, QUrl, Qt
 from PySide6.QtGui import QGuiApplication, QImage
 
 from .clipboard_macos import ClipboardWorker as QueuedClipboardWorker
@@ -115,3 +115,5 @@ class QtPasteboard:
 class ClipboardWorker(QueuedClipboardWorker):
     def __init__(self, config, ledger, on_local, on_applied, on_status, pasteboard=None):
         super().__init__(config, ledger, on_local, on_applied, on_status, pasteboard or QtPasteboard(), platform_name="Linux")
+        if isinstance(self.board, QtPasteboard):
+            self.board.clipboard.dataChanged.connect(self.tick, Qt.ConnectionType.QueuedConnection)
