@@ -48,6 +48,6 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-v1.6.3의 파일 복사 개선과 검사 범위는 [검증 결과](docs/VALIDATION-v1.6.3.md)에 기록합니다. 이전 버전의 화면 전환 검사 결과는 [v1.6.2 검증](docs/VALIDATION-v1.6.2.md)에 있습니다. 실제 장비·네트워크의 체감 속도를 보장하는 수치는 아닙니다.
+자동 검사: **Windows 133개 · Mac 각 120개 · Linux 122개 통과.** 파일 복사 개선과 미검증 범위는 [검증 결과](docs/VALIDATION-v1.6.3.md)에 기록했습니다. 실제 장비·네트워크의 체감 속도를 보장하는 수치는 아닙니다.
 
 [검증 결과](docs/VALIDATION-v1.6.3.md) · [파일 공유](docs/FILE_SHARING.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)

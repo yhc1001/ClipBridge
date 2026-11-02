@@ -1,0 +1,71 @@
+{
+  "version": "1.6.3",
+  "date_kst": "2026-11-02",
+  "runtime_source_commit": "3804d10df6b3f04a00f150d485595b0100b527ee",
+  "runtime_sources_identical_since_recorded_commit": true,
+  "safe_local_selected_tests_passed": 112,
+  "file_responsiveness_regressions_passed_on_windows": 16,
+  "windows": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/41382286723",
+    "ci_source_commit": "053262c1acb5e1c46833ace7011b8e0029555761",
+    "tests_passed": 133,
+    "tests_skipped": 2,
+    "native_delayed_hdrop_render_final_sequence_no_recopy": "passed",
+    "packaged_exe_fresh_legacy_listener_tray_startup_exit": "passed",
+    "bundled_input_probe_isolated_profile_cleanup": "passed",
+    "msi_owner_auth_system_uiaccess_tls_private_admin_desktop_input": "passed",
+    "restricted_medium_il_service_query_and_vm_write_terminate_denial": "passed using impersonation; separate restricted GUI process not tested",
+    "private_firewall_crash_recovery_shutdown_suspend_stop_uninstall": "passed"
+  },
+  "macos": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/41382070184",
+    "architectures": ["arm64", "x86_64"],
+    "tests_passed_each": 120,
+    "tests_skipped_each": 9,
+    "packaged_native_pasteboard_keychain_startup_exit_input_probe": "passed"
+  },
+  "linux": {
+    "ci_run": "https://github.com/yhc1001/ClipBridge/actions/runs/41382070261",
+    "tests_passed": 122,
+    "tests_skipped": 9,
+    "packaged_x11_clipboard_encrypted_settings_startup_exit_input_probe": "passed",
+    "native_tls_mouse_keyboard_on_two_private_xvfb_displays": "passed",
+    "legacy_250ms_handoff_median_ms": 275.47,
+    "instant_handoff_median_ms": 7.47
+  },
+  "file_transfer": {
+    "baseline_regression_result": "5 failed, 2 passed; includes one newly introduced streaming-hash API check",
+    "source_bytes_before_after_for_1280000_byte_file": [2560000, 1280000],
+    "directory_scans_before_after_for_three_recipients": [3, 1],
+    "new_streaming_capability": "file_stream=1; final SHA-256 per file required before clipboard exposure",
+    "legacy_prehashed_protocol_fallback": "passed in both directions",
+    "temporary_scan_and_open_lock_retries": "passed",
+    "persistent_lock_retry_bound_and_next_copy": "passed; 5 attempts total",
+    "changed_source_abort_in_streaming_and_legacy_modes": "passed; unfinished stage removed; next copy works",
+    "corrupt_missing_extra_hash_rejection_and_cleanup": "passed",
+    "same_path_edits_bidirectional_small_file_copies": "24 consecutive deliveries passed using synthetic clipboard apply",
+    "new_copy_cancellation_and_shared_preparation_source_lease": "passed",
+    "zero_byte_files_empty_directories": "passed in both directions",
+    "receiver_file_stream_limit": "one open output stream per receiving transfer"
+  },
+  "local_loopback_reference_measurement": {
+    "scope": "Same v1.6.3 implementation: legacy fallback vs new streaming; loopback TLS, disk staging, synthetic apply. No clipboard capture/write, LAN or Tailscale timing. Includes file-cache and run-order effects.",
+    "small_1000_bytes_trials_each": 10,
+    "small_legacy_median_ms": 5.32,
+    "small_streaming_median_ms": 5.14,
+    "large_16777216_bytes_trials_each": 3,
+    "large_legacy_samples_ms": [311.33, 305.08, 309.79],
+    "large_streaming_samples_ms": [308.37, 296.54, 299.45],
+    "large_legacy_median_ms": 309.79,
+    "large_streaming_median_ms": 299.45,
+    "interpretation": "Small timing difference in this environment. Reduced source reads do not mean twice the end-to-end speed. Physical improvement not measured."
+  },
+  "not_verified": [
+    "Reproduction or subjective improvement on the user's actual PC combinations",
+    "Physical Windows/macOS/Linux application-specific paste and Moonlight",
+    "LAN/Tailscale end-to-end latency under network/disk/antivirus load",
+    "Maximum sizes, 20000 files and all 16 clients under prolonged load",
+    "Actual UAC consent, lock/sign-in screens and physical reboot"
+  ],
+  "packaging": "Preserve verified CI executable bytes and signed app contents; refresh only external documentation. MSI docs are a build-time snapshot. No live user app replacement, restart or clipboard/input test was performed."
+}
