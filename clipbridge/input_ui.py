@@ -107,7 +107,9 @@ class InputDialog(QDialog):
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
         layout.addWidget(QLabel("연결된 화면 · 양쪽 PC에서 카드를 옮기면 배치가 함께 바뀝니다."))
-        layout.addWidget(QLabel("연결 해제: 상대 PC 카드를 클릭한 다음 아래 버튼을 누르세요."))
+        self.disconnect_hint = QLabel()
+        self.disconnect_hint.setWordWrap(True)
+        layout.addWidget(self.disconnect_hint)
         self.scene = QGraphicsScene(self)
         self.preview = QGraphicsView(self.scene)
         self.preview.setMinimumHeight(250)
@@ -184,7 +186,10 @@ class InputDialog(QDialog):
         if not name:
             self.status.setText("연결을 해제할 화면 카드를 먼저 선택하세요.")
             return
-        if QMessageBox.question(self, "연결 해제", "선택 PC의 클립보드·파일·마우스 연결을 해제할까요?") != QMessageBox.StandardButton.Yes:
+        question = ("이 PC를 그룹에서 연결 해제할까요? 클립보드·파일·마우스 연결이 함께 해제됩니다."
+                    if self.data.get("easy_controller") else
+                    "선택 PC의 클립보드·파일·마우스 연결을 해제할까요?")
+        if QMessageBox.question(self, "연결 해제", question) != QMessageBox.StandardButton.Yes:
             return
         try:
             self.watch(self.owner.input_setup.disconnect(name))
@@ -228,6 +233,10 @@ class InputDialog(QDialog):
         return 0, 0
 
     def load(self):
+        client = bool(self.data.get("easy_controller"))
+        self.disconnect_button.setText("이 PC 연결 해제" if client else "선택 PC 연결 해제")
+        self.disconnect_hint.setText("이 PC를 그룹에서 해제하려면 아래 버튼을 누르세요." if client else
+                                     "연결 해제: 상대 PC 카드를 클릭한 다음 아래 버튼을 누르세요.")
         self.enabled.setChecked(self.data["enabled"])
         self.mode.setCurrentIndex(self.mode.findData(self.data["mode"]))
         self.name.setText(self.data["name"])
