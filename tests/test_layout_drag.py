@@ -80,6 +80,9 @@ def test_invalid_gap_restores_original_without_sending(editor, qt_app):
     assert positions(dialog) == old
     assert not owner.requests
     assert "맞닿" in dialog.status.text()
+    dialog.move_screen(2, 2, 2)
+    pump(qt_app, lambda: bool(owner.requests))
+    assert "맞닿" not in dialog.status.text()
 
 
 def test_mouse_drag_onto_card_reorders_and_preserves_screen_selection(editor, qt_app):

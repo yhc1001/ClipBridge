@@ -303,6 +303,7 @@ class InputDialog(QDialog):
                     self.table.item(index, 2).setText(str(screens[index]["y"]))
         QTimer.singleShot(0, self.refresh_preview)
         if self.data.get("easy_controller") or self.data.get("easy_peers"):
+            self.status.setText("화면 배치 변경을 요청했습니다.")
             QTimer.singleShot(0, self.save)
 
     def collect(self):
