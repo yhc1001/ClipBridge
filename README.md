@@ -52,6 +52,6 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-연결 해제 수정과 검사 범위는 [v1.6.4 검증 결과](docs/VALIDATION-v1.6.4.md)에, 파일 복사 개선은 [v1.6.3 검증 결과](docs/VALIDATION-v1.6.3.md)에 기록했습니다.
+화면 배치 검사 범위는 [v1.6.5 검증 결과](docs/VALIDATION-v1.6.5.md)에, 파일 복사 개선은 [v1.6.3 검증 결과](docs/VALIDATION-v1.6.3.md)에 기록했습니다.
 
 [검증 결과](docs/VALIDATION-v1.6.3.md) · [파일 공유](docs/FILE_SHARING.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)

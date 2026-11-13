@@ -1,0 +1,13 @@
+{
+  "version": "1.6.5",
+  "date_kst": "2026-11-13",
+  "runtime_source_commit": "3c44533c3f72cf77bb8e070eda5474a51b37472c",
+  "regressions_reproduced": ["occupied screen drop does not swap", "failed asynchronous layout send leaves unsaved positions displayed"],
+  "layout_tests": "six passed, including actual Qt drag and TLS layout propagation from host and participant to three simulated devices",
+  "native_links_for_swapped_layout": "reciprocal left/right link generation passed",
+  "windows": {"run": "https://github.com/yhc1001/ClipBridge/actions/runs/43371163452", "passed": 143, "skipped": 2, "packaged_exe_and_uac_msi": "passed"},
+  "macos_arm_and_intel": {"run": "https://github.com/yhc1001/ClipBridge/actions/runs/43371163623", "passed_each": 130, "skipped_each": 9, "packaged_apps": "passed"},
+  "linux_x11": {"run": "https://github.com/yhc1001/ClipBridge/actions/runs/43371163241", "passed": 132, "skipped": 9, "packaged_app_and_native_input": "passed"},
+  "not_verified": ["user's physical PCs after installation", "physical screen transitions after a swap", "actual UAC consent and physical reboot"],
+  "packaging": "CI runtime bytes preserved; external docs refreshed; MSI docs are the build-time snapshot. User's live app and connection were not modified or restarted."
+}
