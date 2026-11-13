@@ -178,7 +178,7 @@ def test_advanced_dialog_and_screen_layout_remain_usable(qt_app, tmp_path, monke
         dialog.move_screen(1, 1, 1)
         assert dialog.collect()["screens"][1] == {"name": "Linux", "x": 1, "y": 1}
         dialog.move_screen(1, 1, 0)
-        assert dialog.collect()["screens"][1]["y"] == 1
+        assert [(screen["x"], screen["y"]) for screen in dialog.collect()["screens"]] == [(1, 1), (1, 0)]
         validate(dialog.collect())
         dialog.table.setCurrentCell(1, 0)
         dialog.remove_screen()

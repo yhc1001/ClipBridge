@@ -106,7 +106,7 @@ class InputDialog(QDialog):
         self.status = QLabel(getattr(owner, "input_setup_status", "Main에 승인 요청을 보내면 화면이 자동 등록됩니다."))
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
-        layout.addWidget(QLabel("연결된 화면 · 양쪽 PC에서 카드를 옮기면 배치가 함께 바뀝니다."))
+        layout.addWidget(QLabel("화면 카드를 옮겨 배치하세요. 다른 카드 위에 놓으면 서로 자리를 바꿉니다."))
         self.disconnect_hint = QLabel()
         self.disconnect_hint.setWordWrap(True)
         layout.addWidget(self.disconnect_hint)
@@ -149,7 +149,7 @@ class InputDialog(QDialog):
             outer.addWidget(buttons)
         self.load()
 
-    def watch(self, future, enable=True):
+    def watch(self, future, enable=True, on_error=None):
         timer = QTimer(self)
         def done():
             if not future.done():
@@ -162,6 +162,8 @@ class InputDialog(QDialog):
                 future.result()
             except Exception as error:
                 self.status.setText(str(error) if isinstance(error, ValueError) else "연결 설정을 적용하지 못했습니다.")
+                if on_error:
+                    on_error()
         timer.timeout.connect(done)
         timer.start(100)
 
@@ -277,20 +279,28 @@ class InputDialog(QDialog):
         self.preview.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def move_screen(self, row, x, y):
-        if (int(self.table.item(row, 1).text()), int(self.table.item(row, 2).text())) == (x, y):
+        original = (int(self.table.item(row, 1).text()), int(self.table.item(row, 2).text()))
+        if original == (x, y):
+            return
+        screens = [{"name": self.table.item(i, 0).text(), "x": int(self.table.item(i, 1).text()),
+                    "y": int(self.table.item(i, 2).text())} for i in range(self.table.rowCount())]
+        other = next((i for i, screen in enumerate(screens) if i != row and
+                      (screen["x"], screen["y"]) == (x, y)), None)
+        screens[row]["x"], screens[row]["y"] = x, y
+        if other is not None:
+            screens[other]["x"], screens[other]["y"] = original
+        try:
+            from .input_setup import layout_settings
+            layout_settings(self.data, screens)
+        except ValueError as error:
+            self.status.setText(str(error))
+            QTimer.singleShot(0, self.refresh_preview)
             return
         with QSignalBlocker(self.table):
-            occupied = set()
-            for other in range(self.table.rowCount()):
-                if other == row:
-                    continue
-                try:
-                    occupied.add((int(self.table.item(other, 1).text()), int(self.table.item(other, 2).text())))
-                except (AttributeError, ValueError):
-                    pass
-            if (x, y) not in occupied:
-                self.table.item(row, 1).setText(str(x))
-                self.table.item(row, 2).setText(str(y))
+            for index in (row, other):
+                if index is not None:
+                    self.table.item(index, 1).setText(str(screens[index]["x"]))
+                    self.table.item(index, 2).setText(str(screens[index]["y"]))
         QTimer.singleShot(0, self.refresh_preview)
         if self.data.get("easy_controller") or self.data.get("easy_peers"):
             QTimer.singleShot(0, self.save)
@@ -336,8 +346,13 @@ class InputDialog(QDialog):
             from .input_setup import layout_settings
             layout_settings(settings, [{key: item[key] for key in ("name", "x", "y")} for item in settings["screens"]])
             screens = [{key: item[key] for key in ("name", "x", "y")} for item in settings["screens"]]
-            self.watch(self.owner.input_setup.change_layout(screens, self.data.get("easy_revision", 0)))
+            self.watch(self.owner.input_setup.change_layout(screens, self.data.get("easy_revision", 0)),
+                       on_error=self.restore_saved_layout)
         except Exception as error:
             self.status.setText(str(error) if isinstance(error, ValueError) else "화면 배치를 적용하지 못했습니다.")
             self.data = {**defaults(), **self.owner.config.input_settings}
             self.load()
+
+    def restore_saved_layout(self):
+        self.data = {**defaults(), **self.owner.config.input_settings}
+        self.load()
