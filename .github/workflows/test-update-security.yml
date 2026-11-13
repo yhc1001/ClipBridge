@@ -1,6 +1,12 @@
 name: Update security on disposable Windows runner
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/test-update-security.yml'
+      - 'clipbridge/update_*.py'
+      - 'tests/test_update_*.py'
+      - 'tools/update_signer.py'
 permissions:
   contents: read
 jobs:

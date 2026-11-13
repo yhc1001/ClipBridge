@@ -40,8 +40,9 @@ def test_verified_release_download_and_tamper_cleanup(tmp_path):
               release_url("1.7.0", "ClipBridge-update.json"): json.dumps(envelope).encode(),
               release_url("1.7.0", name): data}
     client = FakeOpener(routes)
-    manifest = find_update("1.6.5", public, opener=client)
-    result = download_asset(envelope, name, tmp_path, public_key=public, installed_version="1.6.5", opener=client)
+    found = find_update("1.6.5", public, opener=client)
+    assert found == envelope
+    result = download_asset(found, name, tmp_path, public_key=public, installed_version="1.6.5", opener=client)
     assert result.read_bytes() == data
     result.unlink()
     routes[release_url("1.7.0", name)] = b"wrong bytes"
@@ -52,6 +53,13 @@ def test_verified_release_download_and_tamper_cleanup(tmp_path):
     with pytest.raises(ValueError):
         download_asset(envelope, name, tmp_path, public_key=public, installed_version="1.6.5", opener=client)
     assert not list(tmp_path.iterdir())
+
+
+def test_latest_release_without_newer_version_never_fetches_assets():
+    from clipbridge.update_transport import LATEST
+    client = FakeOpener({LATEST: json.dumps({"tag_name": "v1.6.5", "draft": False, "prerelease": False}).encode()})
+    assert find_update("1.6.5", bytes(32), opener=client) is None
+    assert client.urls == [LATEST]
 
 
 def test_redirect_rejects_http_and_unrelated_hosts():

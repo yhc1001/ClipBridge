@@ -52,7 +52,10 @@ def find_update(installed_version, public_key, *, opener=None):
     if version_tuple(version) <= version_tuple(installed_version):
         return None
     envelope = read_small(release_url(version, "ClipBridge-update.json"), opener=opener)
-    return verify_manifest(envelope, public_key, installed_version=installed_version, requested_version=version)
+    verify_manifest(envelope, public_key, installed_version=installed_version, requested_version=version)
+    # Keep the signed envelope: the download and privileged installer must
+    # independently re-verify it at their own trust boundaries.
+    return envelope
 
 
 def download_asset(envelope, name, destination, *, public_key, installed_version, opener=None):
