@@ -62,6 +62,34 @@ def test_latest_release_without_newer_version_never_fetches_assets():
     assert client.urls == [LATEST]
 
 
+@pytest.mark.parametrize("release", [
+    {"tag_name": "v1.7.0", "draft": True, "prerelease": False},
+    {"tag_name": "v1.7.0", "draft": False, "prerelease": True},
+    {"tag_name": "v../1.7.0", "draft": False, "prerelease": False},
+])
+def test_untrusted_release_metadata_is_rejected_before_download(release):
+    from clipbridge.update_transport import LATEST
+    client = FakeOpener({LATEST: json.dumps(release).encode()})
+    with pytest.raises(ValueError):
+        find_update("1.6.5", bytes(32), opener=client)
+    assert client.urls == [LATEST]
+
+
+def test_cannot_substitute_a_signed_older_release_for_latest():
+    from clipbridge.update_transport import LATEST
+    key = Ed25519PrivateKey.generate()
+    public = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    manifest = {"schema": 1, "version": "1.7.0", "assets": {
+        "ClipBridge.exe": {"size": 1, "sha256": hashlib.sha256(b"x").hexdigest()}}}
+    envelope = {"manifest": manifest, "signature": base64.b64encode(key.sign(canonical(manifest))).decode("ascii")}
+    client = FakeOpener({
+        LATEST: json.dumps({"tag_name": "v1.8.0", "draft": False, "prerelease": False}).encode(),
+        release_url("1.8.0", "ClipBridge-update.json"): json.dumps(envelope).encode(),
+    })
+    with pytest.raises(ValueError):
+        find_update("1.6.5", public, opener=client)
+
+
 def test_redirect_rejects_http_and_unrelated_hosts():
     handler = TrustedRedirect()
     source = urllib.request.Request("https://github.com/yhc1001/ClipBridge/releases/download/v1.7.0/ClipBridge.exe")
