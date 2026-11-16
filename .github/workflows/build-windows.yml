@@ -36,6 +36,13 @@ jobs:
           version: '6.11.3'
           arch: win64_msvc2022_64
           cache: true
+          # aqt 3.3.0 predates the Qt 6.11 repository split. Pin the merged
+          # upstream support commit instead of a mutable branch or PR ref.
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b
+      - name: Restore application Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - name: Install input-engine OpenSSL development files
         shell: pwsh
         run: |
