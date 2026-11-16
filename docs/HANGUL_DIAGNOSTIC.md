@@ -9,7 +9,7 @@
 실행 파일 생성 예:
 
 ```
-python -m PyInstaller --noconfirm --onefile --windowed --name ClipBridge-Hangul-Check --distpath dist/hangul-diagnostic --workpath build/hangul-diagnostic --specpath build/hangul-diagnostic tools/hangul_key_probe.py
+python tools/build_hangul_probe.py
 ```
 
 진단기 자체의 테스트는 사용자 키를 전송하지 않는다. 실제 두 PC 및 Moonlight 환경 시험은 사용자가 시작해야 한다. 진단 도구는 서명되지 않았으며 ClipBridge 설치본이나 설정을 변경하지 않는다.
