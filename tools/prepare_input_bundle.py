@@ -1,8 +1,9 @@
 """Prepare a pinned, self-contained input component; no system Deskflow install.
 
 Build-time network access only. Runtime code never downloads executables.
-Windows/macOS use official portable artifacts; Linux builds the same source for
-Ubuntu 24.04 X11 with the documented optional-Wayland build changes.
+Windows uses a locally rebuilt core with a narrow Korean-key fix and the
+official portable runtime; macOS uses the official portable artifact. Linux
+builds the same source for Ubuntu 24.04 X11.
 """
 import hashlib
 import json
@@ -19,6 +20,7 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 LOCK = json.loads((ROOT / "assets/input-engine-lock.json").read_text(encoding="utf-8"))
 DESTINATION = ROOT / "vendor/input-engine"
 CACHE = ROOT / "dist/input-downloads"
@@ -51,7 +53,7 @@ def engine_source():
     return directory
 
 
-def windows_bundle():
+def windows_bundle(source):
     archive = download(LOCK["windows-x64"], "deskflow-win-x64.zip")
     with zipfile.ZipFile(archive) as package:
         for name in package.namelist():
@@ -66,6 +68,20 @@ def windows_bundle():
             target = DESTINATION / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(package.read(name))
+    # Rebuild only the input core from the pinned, corresponding source; keep
+    # the exact Qt/runtime libraries from the verified official distribution.
+    from tools.windows_hangul_patch import apply
+    apply(source)
+    build = ROOT / "build/input-windows"
+    openssl = ["-DOPENSSL_ROOT_DIR=" + os.environ["OPENSSL_ROOT_DIR"]] if os.environ.get("OPENSSL_ROOT_DIR") else []
+    subprocess.run(["cmake", "-S", str(source), "-B", str(build), "-G", "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_TESTS=OFF", "-DBUILD_INSTALLER=OFF",
+        "-DCMAKE_DISABLE_FIND_PACKAGE_Git=ON", *openssl], check=True)
+    subprocess.run(["cmake", "--build", str(build), "--target", "deskflow-core", "--parallel", "3"], check=True)
+    executable = build / "bin/deskflow-core.exe"
+    if not executable.is_file():
+        raise RuntimeError("Rebuilt Windows input core is missing")
+    shutil.copy2(executable, DESTINATION / "deskflow-core.exe")
     return "deskflow-core.exe"
 
 
@@ -135,21 +151,22 @@ def linux_bundle(source):
 def prepare():
     marker = DESTINATION / "bundle.json"
     target = "windows-x64" if sys.platform == "win32" else "macos-" + platform.machine() if sys.platform == "darwin" else "linux-x86_64"
+    patch_digest = hashlib.sha256((ROOT / "tools/windows_hangul_patch.py").read_bytes()).hexdigest() if sys.platform == "win32" else None
     if marker.is_file():
         metadata = json.loads(marker.read_text())
-        if metadata["platform"] == target and all((DESTINATION / name).is_file() and hashlib.sha256((DESTINATION / name).read_bytes()).hexdigest() == digest for name, digest in metadata["hashes"].items()):
+        if metadata["platform"] == target and metadata.get("windows_patch") == patch_digest and all((DESTINATION / name).is_file() and hashlib.sha256((DESTINATION / name).read_bytes()).hexdigest() == digest for name, digest in metadata["hashes"].items()):
             return DESTINATION
         raise RuntimeError("Existing input component is inconsistent; use a fresh build checkout")
     DESTINATION.mkdir(parents=True, exist_ok=True)
     source = engine_source()
-    executable = windows_bundle() if sys.platform == "win32" else macos_bundle() if sys.platform == "darwin" else linux_bundle(source)
+    executable = windows_bundle(source) if sys.platform == "win32" else macos_bundle() if sys.platform == "darwin" else linux_bundle(source)
     for name, destination in (("LICENSE", "DESKFLOW-LICENSE.txt"), ("LICENSES/LicenseRef-OpenSSL-Exception.txt", "DESKFLOW-OPENSSL-EXCEPTION.txt")):
         shutil.copyfile(source / name, DESTINATION / destination)
     shutil.copyfile(ROOT / "docs/INPUT_COMPONENT.md", DESTINATION / "INPUT_COMPONENT.md")
     hashes = {path.relative_to(DESTINATION).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(DESTINATION.rglob("*")) if path.is_file() and not path.is_symlink()}
     marker.write_text(json.dumps({"version": LOCK["version"], "platform": target, "executable": executable,
-        "source": LOCK["source"], "hashes": hashes}, indent=2), encoding="utf-8")
+        "source": LOCK["source"], "windows_patch": patch_digest, "hashes": hashes}, indent=2), encoding="utf-8")
     print("Self-contained input component ready: " + target, flush=True)
     return DESTINATION
 

@@ -19,6 +19,24 @@ jobs:
       - name: Verify no Deskflow installation
         run: |
           if (Test-Path 'C:\Program Files\Deskflow') { throw 'Runner must not have Deskflow installed' }
+      - name: Set up Windows C++ compiler
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Qt input-engine SDK
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.11.3'
+          arch: win64_msvc2022_64
+          cache: true
+      - name: Install input-engine OpenSSL development files
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows --disable-metrics
+          if ($LASTEXITCODE -ne 0) { throw 'OpenSSL development package failed' }
+          "OPENSSL_ROOT_DIR=$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows" >> $env:GITHUB_ENV
+          'QT_PLUGIN_PATH=' >> $env:GITHUB_ENV
+          'QT_QPA_PLATFORM_PLUGIN_PATH=' >> $env:GITHUB_ENV
       - name: Prepare built-in input engine
         run: python tools/prepare_input_bundle.py
       - name: Native Windows tests
