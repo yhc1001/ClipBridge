@@ -1,0 +1,15 @@
+# Windows 한영키 진단
+
+`tools/hangul_key_probe.py`는 ClipBridge의 제품 코드가 아닌 일회성 진단 도구다. Moonlight를 실행하는 Windows 노트북에서 직접 실행한다. 각 시험 버튼을 누르면 최대 20초간 Windows 저수준 키보드 이벤트를 살펴보고 후킹을 해제한다. 한영·한자·Alt 관련 신호만 메모리에 보관해 화면에 표시하며, 글자 입력을 기록하거나 파일에 저장하거나 네트워크로 전송하지 않는다. 사용자에게 결과 화면 공유 여부를 맡긴다.
+
+노트북 키보드와 ClipBridge로 연결한 메인 PC 키보드에서 각각 시험한다. Moonlight에 포커스를 두고 한영키와 오른쪽 Alt를 각각 누른다. 어떤 입력에서 전환이 실패했는지 함께 확인한다.
+
+결과는 Windows 훅이 관찰한 가상 키, 스캔 코드, 확장·주입 표시 및 누름/뗌이다. 가상 키 또는 물리 키 위치가 변경되거나 키 떼기가 누락됐는지 비교하는 단서로 사용한다. 훅 순서, 프로그램 권한, 다른 데스크톱 등으로 이벤트를 관찰하지 못할 수 있으며, 이 결과만으로 Moonlight나 서버가 실제로 전환했는지 입증할 수는 없다. 입력 내용을 기록하는 범용 키보드 로깅 도구로 확장하지 않는다.
+
+실행 파일 생성 예:
+
+```
+python -m PyInstaller --noconfirm --onefile --windowed --name ClipBridge-Hangul-Check --distpath dist/hangul-diagnostic --workpath build/hangul-diagnostic --specpath build/hangul-diagnostic tools/hangul_key_probe.py
+```
+
+진단기 자체의 테스트는 사용자 키를 전송하지 않는다. 실제 두 PC 및 Moonlight 환경 시험은 사용자가 시작해야 한다. 진단 도구는 서명되지 않았으며 ClipBridge 설치본이나 설정을 변경하지 않는다.
