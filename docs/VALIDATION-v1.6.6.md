@@ -11,7 +11,8 @@ Windows 입력을 보내는 쪽의 한국어 한영키 F2 신호만 각각의 �
 ## 확인 범위
 
 - 세 번의 누름만 있는 입력에서 세 쌍의 누름·뗌을 생성하고, 늦은 뗌을 중복 생성하지 않는 정책을 C++ 시험으로 확인했다. 다른 키는 기존 경로로 전달한다.
-- 기존 ClipBridge 연결 및 기능과 설치형 Windows 서비스의 회귀 검사는 별도의 CI에서 진행한다.
+- [Windows CI](https://github.com/yhc1001/ClipBridge/actions/runs/43822871782): 146개 통과, 다른 OS용 2개 생략. 새 core 컴파일, 패키지 시작·종료, MSI 설치, UAC 서비스 인증·입력·재시작을 별도의 Windows 환경에서 확인했다. 실제 UAC 승인 창이나 실물 PC 재부팅은 검사하지 않았다.
+- [Mac ARM/Intel CI](https://github.com/yhc1001/ClipBridge/actions/runs/43821056749): 각각 133개 통과, 9개 생략. [Linux CI](https://github.com/yhc1001/ClipBridge/actions/runs/43821056253): 135개 통과, 9개 생략 및 별도 X11 화면 간 입력 검사 통과. 이 운영체제의 입력 엔진은 한영키 수정 대상이 아니다.
 - **수정 후 사용자의 실제 메인 PC → 노트북 Moonlight → 서버 PC 경로는 아직 시험하지 않았다.** 해당 환경에서 반복 전환과 다른 Alt 단축키가 정상인지 직접 확인해야 한다.
 
 자동 업데이트는 이 버전에 포함되지 않는다. UAC 설치형은 기존 사용자 권한으로 MSI를 업데이트한다.
