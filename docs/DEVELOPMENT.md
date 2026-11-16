@@ -4,15 +4,17 @@ Python 3.12 이상과 각 OS에서의 네이티브 빌드가 필요합니다. �
 
 ## Windows
 
+Windows x64 빌드에는 Python 외에 MSVC x64, CMake, Ninja, Qt 6.11.3 MSVC x64 SDK와 OpenSSL 3 개발 파일이 필요합니다. C++ 개발 환경에서 Qt를 PATH에 추가하고 OpenSSL 위치를 `OPENSSL_ROOT_DIR`에 지정하세요. `.github/workflows/build-windows.yml`에 검증 환경이 기록돼 있습니다.
+
 ```powershell
 git clone https://github.com/yhc1001/ClipBridge.git
 cd ClipBridge
 .\build.ps1
 ```
 
-결과: `dist/v1.6.0/ClipBridge.exe`. 기존 실행 파일을 덮어쓰지 않고 버전별 폴더에 빌드합니다. `tools/build_exe.py`가 외부 도구의 ICU DLL 충돌을 방지합니다. v1.0.0 Windows 빌드 재현용 의존성 목록은 `requirements-lock.txt`에 있습니다.
+결과: `dist/v1.6.6/ClipBridge.exe`. 기존 실행 파일을 덮어쓰지 않고 버전별 폴더에 빌드합니다. `tools/build_exe.py`가 외부 도구의 ICU DLL 충돌을 방지합니다. v1.0.0 Windows 빌드 재현용 의존성 목록은 `requirements-lock.txt`에 있습니다.
 
-UAC 설치형은 위 의존성과 .NET SDK를 준비한 깨끗한 Windows x64 체크아웃에서 `python tools/build_windows_uac.py`로 만듭니다. WiX 4.0.6을 빌드 전용 도구 폴더에 설치하고 `dist/v1.6.0/ClipBridge-UAC-setup-x64.msi`를 생성합니다. 일반 GUI와 SYSTEM 서비스는 각각 onedir로 묶습니다. 서비스·입력 core는 Program Files에만 설치합니다. [서비스 구조](WINDOWS_UAC_DESIGN.md)
+UAC 설치형은 위 의존성과 .NET SDK를 준비한 깨끗한 Windows x64 체크아웃에서 `python tools/build_windows_uac.py`로 만듭니다. WiX 4.0.6을 빌드 전용 도구 폴더에 설치하고 `dist/v1.6.6/ClipBridge-UAC-setup-x64.msi`를 생성합니다. 일반 GUI와 SYSTEM 서비스는 각각 onedir로 묶습니다. 서비스·입력 core는 Program Files에만 설치합니다. [서비스 구조](WINDOWS_UAC_DESIGN.md)
 
 ## macOS
 

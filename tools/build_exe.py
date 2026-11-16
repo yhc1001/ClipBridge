@@ -6,15 +6,19 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
 system = Path(os.environ["SystemRoot"])
+# Build the native input core while the developer's C++/CMake/Qt toolchain is
+# still available on PATH. Only the PyInstaller dependency scan needs the
+# restricted path below; otherwise a clean Windows checkout cannot be built.
+from prepare_input_bundle import prepare
+sys.path.insert(0, str(root))
+from clipbridge import __version__
+input_component = prepare()
+
 # Native tools (e.g. Poppler/Conda) sometimes export an incompatible icuuc.dll.
 # Qt uses Windows' ICU. Do not accidentally package unrelated PATH libraries.
 os.environ["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), sys.base_prefix, str(system / "System32"), str(system)])
 
 from PyInstaller.__main__ import run
-from prepare_input_bundle import prepare
-sys.path.insert(0, str(root))
-from clipbridge import __version__
-input_component = prepare()
 
 run(["--noconfirm", "--clean", "--onefile", "--windowed", "--name", "ClipBridge", "--distpath", "dist/v" + __version__,
      "--add-data", str(input_component) + ":input-engine",
