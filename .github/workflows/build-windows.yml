@@ -23,6 +23,13 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+      - name: Test Korean key press and release policy
+        shell: pwsh
+        run: |
+          cl /nologo /EHsc /std:c++17 /W4 /WX tests/windows_hangul_tap.cpp "/Fe:$env:RUNNER_TEMP/hangul-tap-test.exe" "/Fo:$env:RUNNER_TEMP/hangul-tap-test.obj"
+          if ($LASTEXITCODE -ne 0) { throw 'Korean key test compilation failed' }
+          & "$env:RUNNER_TEMP/hangul-tap-test.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Korean key test failed' }
       - name: Qt input-engine SDK
         uses: jurplel/install-qt-action@v4
         with:
@@ -55,6 +62,6 @@ jobs:
         with:
           name: ClipBridge-win-x64
           path: |
-            dist/v1.6.5/ClipBridge.exe
-            dist/v1.6.5/ClipBridge-UAC-setup-x64.msi
+            dist/v1.6.6/ClipBridge.exe
+            dist/v1.6.6/ClipBridge-UAC-setup-x64.msi
           if-no-files-found: error

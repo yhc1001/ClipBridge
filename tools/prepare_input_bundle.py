@@ -151,7 +151,8 @@ def linux_bundle(source):
 def prepare():
     marker = DESTINATION / "bundle.json"
     target = "windows-x64" if sys.platform == "win32" else "macos-" + platform.machine() if sys.platform == "darwin" else "linux-x86_64"
-    patch_digest = hashlib.sha256((ROOT / "tools/windows_hangul_patch.py").read_bytes()).hexdigest() if sys.platform == "win32" else None
+    patch_digest = hashlib.sha256((ROOT / "tools/windows_hangul_patch.py").read_bytes() +
+        (ROOT / "tools/windows_hangul_tap.h").read_bytes()).hexdigest() if sys.platform == "win32" else None
     if marker.is_file():
         metadata = json.loads(marker.read_text())
         if metadata["platform"] == target and metadata.get("windows_patch") == patch_digest and all((DESTINATION / name).is_file() and hashlib.sha256((DESTINATION / name).read_bytes()).hexdigest() == digest for name, digest in metadata["hashes"].items()):

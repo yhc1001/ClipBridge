@@ -6,7 +6,7 @@ import tarfile
 
 import pytest
 
-from tools.windows_hangul_patch import AFTER, BEFORE, apply
+from tools.windows_hangul_patch import AFTER, BEFORE, HEADER, INCLUDE_AFTER, INCLUDE_BEFORE, apply
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,7 +25,8 @@ def test_applies_once_to_pinned_source_and_refuses_unknown_source(tmp_path):
     target.write_text(original, encoding="utf-8", newline="\n")
     apply(tmp_path)
     patched = target.read_text(encoding="utf-8")
-    assert patched == original.replace(BEFORE, AFTER, 1)
+    assert patched == original.replace(INCLUDE_BEFORE, INCLUDE_AFTER, 1).replace(BEFORE, AFTER, 1)
+    assert target.with_name("ClipBridgeHangulTap.h").read_bytes() == HEADER.read_bytes()
     apply(tmp_path)
     assert target.read_text(encoding="utf-8") == patched
     target.write_text("unrecognized version", encoding="utf-8")
