@@ -13,7 +13,7 @@
 | Apple 칩 / Intel Mac | `ClipBridge-macOS-arm64.zip` / `ClipBridge-macOS-intel.zip` |
 | Linux x86_64 · X11 | `ClipBridge-linux-x86_64.tar.gz` |
 
-Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모두 v1.6.5로 업데이트하세요.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
+Deskflow나 Python을 따로 설치할 필요 없습니다. **최신 버전은 v1.6.6입니다.** 기존 Deskflow·ClipBridge는 트레이에서 종료한 뒤 새 버전을 실행합니다. Windows 설치형은 MSI 설치 후 시작 메뉴의 ClipBridge를 여세요. 이미 UAC 설치형을 쓰고 있다면 EXE만 교체하지 말고 MSI도 업데이트하세요.
 
 ## 연결은 세 단계
 
@@ -52,6 +52,6 @@ Deskflow나 Python을 따로 설치할 필요 없습니다. **연결할 PC 모�
 
 승인한 PC만 TLS 암호화 통신으로 연결합니다. 외부 서버·클라우드·텔레메트리는 사용하지 않습니다.
 
-화면 배치 검사 범위는 [v1.6.5 검증 결과](docs/VALIDATION-v1.6.5.md)에, 파일 복사 개선은 [v1.6.3 검증 결과](docs/VALIDATION-v1.6.3.md)에 기록했습니다.
+한영키 수정 검증 범위는 [v1.6.6 검증 결과](docs/VALIDATION-v1.6.6.md)에, 화면 배치 검사는 [v1.6.5 검증 결과](docs/VALIDATION-v1.6.5.md)에 기록했습니다.
 
 [검증 결과](docs/VALIDATION-v1.6.3.md) · [파일 공유](docs/FILE_SHARING.md) · [지원 형식](docs/FORMATS.md) · [Mac](docs/MACOS.md) · [Linux](docs/LINUX.md) · [개발·빌드](docs/DEVELOPMENT.md)

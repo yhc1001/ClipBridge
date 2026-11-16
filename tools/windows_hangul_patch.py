@@ -14,7 +14,7 @@ AFTER = """    // Some Korean keyboards emit a VK_HANGUL down with scan code F2
     // the client and downstream applications do not retain a stuck key.
     // Normal Korean 0x38, Alt, Shift+Space and non-Korean layouts are left
     // alone; on keyboards that do send F2 key-up the later release is ignored.
-    if (clipbridge::normalize_korean_f2(key == kKeyHangul, button, down,
+    if (m_isPrimary && clipbridge::normalize_korean_f2(key == kKeyHangul, button, down,
         [&](bool press) { m_keyState->sendKeyEvent(getEventTarget(), press, false, key, mask, 1, button); },
         [&]() { m_keyState->onKey(button, false, state); m_keyState->testAutoRepeat(false, false, button); })) {
       return true;
